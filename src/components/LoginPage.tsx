@@ -15,6 +15,7 @@ export default function LoginPage() {
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [loading, setLoading] = useState(false);
 
   const [toast, setToast] = useState<{
     text: string;
@@ -33,24 +34,34 @@ export default function LoginPage() {
   };
 
   const handleSubmit = async () => {
-    console.log("CLICK LOGIN");
-  
+    if (!email || !password) {
+      showToast("Por favor completa todos los campos", "error");
+      return;
+    }
+
+    setLoading(true);
+    console.log("CLICK SUBMIT - Modo:", isLogin ? "Login" : "Registro");
+
     try {
-      console.log("ANTES SIGN IN");
-  
-      const result = await signIn(email, password);
-  
-      console.log("LOGIN OK", result);
-  
-      showToast("Login correcto", "success");
-  
+      if (isLogin) {
+        // Iniciar sesión
+        const result = await signIn(email, password);
+        console.log("LOGIN OK", result);
+        showToast("¡Bienvenido de nuevo!", "success");
+      } else {
+        // Registrarse
+        const result = await signUp(email, password);
+        console.log("SIGNUP OK", result);
+        showToast("¡Cuenta creada con éxito! Revisa tu email si requiere confirmación.", "success");
+      }
     } catch (error: any) {
-  
       console.log("ENTRO AL CATCH");
       console.log("ERROR:", error);
       console.log("MESSAGE:", error.message);
   
-      showToast(error.message, "error");
+      showToast(error.message || "Ocurrió un error", "error");
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -110,11 +121,12 @@ export default function LoginPage() {
               marginBottom: 30,
             }}
           >
-            {t.title}
+            {isLogin ? t.title : "Crear cuenta ✨"}
           </h1>
 
           <input
             placeholder={t.email}
+            type="email"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             style={{
@@ -140,27 +152,40 @@ export default function LoginPage() {
             }}
           />
 
+          {/* Botón principal con cambio visual de carga */}
           <button
             type="button"
+            disabled={loading}
             onClick={() => handleSubmit()}
             style={{
               width: "100%",
               padding: 16,
               borderRadius: 14,
-              background: "#FF6B35",
+              background: loading ? "#ccc" : "#FF6B35",
               color: "white",
               fontWeight: 700,
+              cursor: loading ? "not-allowed" : "pointer",
+              transition: "background 0.2s",
             }}
           >
-            {isLogin ? t.loginButton : t.createAccountButton}
+            {loading
+              ? "Procesando..."
+              : isLogin
+              ? t.loginButton
+              : t.createAccountButton}
           </button>
 
+          {/* Botón para alternar entre Login y Registro */}
           <button
             onClick={() => setIsLogin(!isLogin)}
             style={{
               marginTop: 16,
               width: "100%",
               color: "#666",
+              background: "transparent",
+              border: "none",
+              cursor: "pointer",
+              fontSize: 14,
             }}
           >
             {isLogin
