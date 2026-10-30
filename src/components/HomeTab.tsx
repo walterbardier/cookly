@@ -37,6 +37,7 @@ export default function HomeTab() {
         WebkitBackdropFilter: 'blur(20px)',
         position: 'sticky', top: 0, zIndex: 30,
         paddingTop: 'env(safe-area-inset-top, 44px)',
+        padding: 'env(safe-area-inset-top, 44px) 20px 14px',
       }}>
         <div style={{ padding: '14px 20px 18px', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end' }}>
           <div>
