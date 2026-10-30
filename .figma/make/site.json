@@ -1,0 +1,10 @@
+{
+  "description": "Discover, save, and share recipes in a vibrant social platform tailored for food enthusiasts, featuring personalized categories and user profiles.",
+  "robots": {
+    "index": false
+  },
+  "accessibility": {
+    "addBypassLinks": false,
+    "ignoreReducedMotion": false
+  }
+}
