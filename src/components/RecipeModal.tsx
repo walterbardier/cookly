@@ -9,13 +9,15 @@ import { useSaves } from '../context/SavesContext';
 import { useRecipes } from "../context/RecipesContext";
 import { useAuth } from "../context/AuthContext";
 import { supabase } from "../lib/supabase";
+import UserProfile from './UserProfile'; // <-- Importamos UserProfile
 
 type Props = {
   recipe: Recipe;
   onClose: () => void;
+  onNavigateToProfile?: () => void;
 };
 
-export default function RecipeModal({ recipe, onClose }: Props) {
+export default function RecipeModal({ recipe, onClose, onNavigateToProfile }: Props) {
   const { user } = useAuth();
   const { deleteRecipe } = useRecipes();
 
@@ -24,6 +26,9 @@ export default function RecipeModal({ recipe, onClose }: Props) {
   const [toastMessage, setToastMessage] = useState('');
   const [deleting, setDeleting] = useState(false);
   const [loading, setLoading] = useState(false);
+
+  // Estado para ver el perfil de otro usuario desde el modal
+  const [viewingUserId, setViewingUserId] = useState<string | null>(null);
 
   // Estado para controlar si estamos editando
   const [isEditing, setIsEditing] = useState(false);
@@ -36,7 +41,7 @@ export default function RecipeModal({ recipe, onClose }: Props) {
   const [servings, setServings] = useState(recipe.servings ? String(recipe.servings) : '');
   const [ingredients, setIngredients] = useState<string[]>(recipe.ingredients?.length ? recipe.ingredients : ['', '']);
   const [steps, setSteps] = useState<string[]>(recipe.steps?.length ? recipe.steps : ['', '']);
-  const [isPublic, setIsPublic] = useState<boolean>(recipe.is_public ?? true); // <-- Estado para la visibilidad
+  const [isPublic, setIsPublic] = useState<boolean>(recipe.is_public ?? true);
   const [photo, setPhoto] = useState<string | null>(recipe.image || null);
   const [photoFile, setPhotoFile] = useState<File | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
@@ -55,6 +60,25 @@ export default function RecipeModal({ recipe, onClose }: Props) {
   const likes = getLikes(recipe.id);
 
   const currentCategory = CATEGORIES.find(c => c.id === recipe.category);
+  const authorId = recipe.author_id || recipe.author?.id || recipe.profiles?.id;
+
+  const handleAuthorClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (!authorId) return;
+
+    if (user && authorId === user.id) {
+      // Si eres tú mismo, cerramos el modal y vamos al profiletab
+      if (onNavigateToProfile) {
+        onNavigateToProfile();
+      } else {
+        window.dispatchEvent(new CustomEvent('navigate-to-profile'));
+      }
+      onClose();
+    } else {
+      // Si es otro usuario, abrimos su UserProfile
+      setViewingUserId(authorId);
+    }
+  };
 
   const handleLike = async (e: React.MouseEvent<HTMLButtonElement>) => {
     e.stopPropagation();
@@ -112,7 +136,6 @@ export default function RecipeModal({ recipe, onClose }: Props) {
       setLoading(true);
       let imageUrl = recipe.image;
 
-      // 1. Si hay nueva foto, subirla a Supabase Storage
       if (photoFile) {
         const extension = photoFile.name.split('.').pop();
         const filePath = `${user.id}/${Date.now()}.${extension}`;
@@ -130,7 +153,6 @@ export default function RecipeModal({ recipe, onClose }: Props) {
         imageUrl = data.publicUrl;
       }
 
-      // 2. Actualizar la receta en la BDD incluyendo is_public
       const { error: updateError } = await supabase
         .from("recipes")
         .update({
@@ -142,7 +164,7 @@ export default function RecipeModal({ recipe, onClose }: Props) {
           image: imageUrl,
           ingredients: ingredients.filter(i => i.trim() !== ""),
           steps: steps.filter(s => s.trim() !== ""),
-          is_public: isPublic, // <-- Guardamos la visibilidad actualizada
+          is_public: isPublic,
         })
         .eq("id", recipe.id);
 
@@ -154,7 +176,7 @@ export default function RecipeModal({ recipe, onClose }: Props) {
       setTimeout(() => {
         setToast(false);
         onClose();
-        window.location.reload(); // Recarga para reflejar los cambios globales
+        window.location.reload();
       }, 1500);
 
     } catch (error) {
@@ -221,7 +243,6 @@ export default function RecipeModal({ recipe, onClose }: Props) {
         {/* ================= VISTA DE EDICIÓN ================= */}
         {isEditing ? (
           <div style={{ padding: '20px 20px 100px', background: '#F2F2F7', minHeight: '100%' }}>
-            {/* Header de Edición con Cancelar a la izquierda y Guardar con tick a la derecha */}
             <div style={{
               display: 'flex',
               justifyContent: 'space-between',
@@ -235,7 +256,6 @@ export default function RecipeModal({ recipe, onClose }: Props) {
               paddingBottom: 12,
               paddingTop: 18,
             }}>
-              {/* Botón Cancelar a la izquierda */}
               <button
                 onClick={() => setIsEditing(false)}
                 style={{
@@ -254,7 +274,6 @@ export default function RecipeModal({ recipe, onClose }: Props) {
 
               <h2 style={{ fontSize: 18, fontWeight: 800, color: '#1C1C1E', margin: 0 }}>{tAdd.editTitle}</h2>
 
-              {/* Botón Guardar a la derecha con icono de Tick */}
               <button
                 disabled={loading || !canSave}
                 onClick={handleUpdateRecipe}
@@ -274,23 +293,13 @@ export default function RecipeModal({ recipe, onClose }: Props) {
                   gap: 6
                 }}
               >
-                <svg
-                  width="16"
-                  height="16"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="3"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                >
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
                   <polyline points="20 6 9 17 4 12" />
                 </svg>
                 {loading ? "Guardando..." : t.saveChanges}
               </button>
             </div>
 
-            {/* Foto upload */}
             <div style={{ marginBottom: 20 }}>
               <input ref={fileRef} type="file" accept="image/*" onChange={handlePhotoChange} style={{ display: 'none' }} />
               <button
@@ -317,17 +326,14 @@ export default function RecipeModal({ recipe, onClose }: Props) {
               </button>
             </div>
 
-            {/* Título */}
             <Field label={tAdd.recipeTitle} required>
               <input type="text" value={title} onChange={e => setTitle(e.target.value)} style={inputStyle} />
             </Field>
 
-            {/* Descripción */}
             <Field label={tAdd.description}>
               <textarea value={description} onChange={e => setDescription(e.target.value)} rows={3} style={{ ...inputStyle, resize: 'none' }} />
             </Field>
 
-            {/* Categorías */}
             <Field label={tAdd.category} required>
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
                 {CATEGORIES.map(cat => (
@@ -349,7 +355,6 @@ export default function RecipeModal({ recipe, onClose }: Props) {
               </div>
             </Field>
 
-            {/* Duración y Porciones */}
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 20 }}>
               <Field label={tAdd.duration}>
                 <input type="number" value={duration} onChange={e => setDuration(e.target.value)} style={inputStyle} />
@@ -359,50 +364,28 @@ export default function RecipeModal({ recipe, onClose }: Props) {
               </Field>
             </div>
 
-            {/* Visibilidad de la receta - Selector moderno */}
             <Field label={tAdd.visibility || "Visibilidad"}>
-              <div style={{
-                display: 'flex',
-                background: 'white',
-                borderRadius: 14,
-                padding: 4,
-                boxShadow: '0 1px 4px rgba(0,0,0,0.06)',
-              }}>
+              <div style={{ display: 'flex', background: 'white', borderRadius: 14, padding: 4, boxShadow: '0 1px 4px rgba(0,0,0,0.06)' }}>
                 <button
                   type="button"
                   onClick={() => setIsPublic(true)}
                   style={{
-                    flex: 1,
-                    padding: '10px 16px',
-                    borderRadius: 11,
-                    border: 'none',
+                    flex: 1, padding: '10px 16px', borderRadius: 11, border: 'none',
                     background: isPublic ? 'linear-gradient(135deg, #FF6B35, #FF9A5C)' : 'transparent',
-                    color: isPublic ? 'white' : '#8E8E93',
-                    fontWeight: 700,
-                    fontSize: 14,
-                    cursor: 'pointer',
-                    boxShadow: isPublic ? '0 4px 12px rgba(255,107,53,0.3)' : 'none',
-                    transition: 'all 0.2s ease',
+                    color: isPublic ? 'white' : '#8E8E93', fontWeight: 700, fontSize: 14, cursor: 'pointer',
+                    boxShadow: isPublic ? '0 4px 12px rgba(255,107,53,0.3)' : 'none', transition: 'all 0.2s ease',
                   }}
                 >
                   🌍 {tAdd.public || "Público"}
                 </button>
-
                 <button
                   type="button"
                   onClick={() => setIsPublic(false)}
                   style={{
-                    flex: 1,
-                    padding: '10px 16px',
-                    borderRadius: 11,
-                    border: 'none',
+                    flex: 1, padding: '10px 16px', borderRadius: 11, border: 'none',
                     background: !isPublic ? 'linear-gradient(135deg, #FF6B35, #FF9A5C)' : 'transparent',
-                    color: !isPublic ? 'white' : '#8E8E93',
-                    fontWeight: 700,
-                    fontSize: 14,
-                    cursor: 'pointer',
-                    boxShadow: !isPublic ? '0 4px 12px rgba(255,107,53,0.3)' : 'none',
-                    transition: 'all 0.2s ease',
+                    color: !isPublic ? 'white' : '#8E8E93', fontWeight: 700, fontSize: 14, cursor: 'pointer',
+                    boxShadow: !isPublic ? '0 4px 12px rgba(255,107,53,0.3)' : 'none', transition: 'all 0.2s ease',
                   }}
                 >
                   🔒 {tAdd.private || "Privado"}
@@ -410,7 +393,6 @@ export default function RecipeModal({ recipe, onClose }: Props) {
               </div>
             </Field>
 
-            {/* Ingredientes */}
             <Field label={tAdd.ingredients} required>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                 {ingredients.map((ing, i) => (
@@ -432,7 +414,6 @@ export default function RecipeModal({ recipe, onClose }: Props) {
               </div>
             </Field>
 
-            {/* Pasos */}
             <Field label={tAdd.steps} required>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                 {steps.map((step, i) => (
@@ -457,7 +438,6 @@ export default function RecipeModal({ recipe, onClose }: Props) {
         ) : (
           /* ================= VISTA DE DETALLE (NORMAL) ================= */
           <>
-            {/* Hero image */}
             <div style={{ position: 'relative', height: 260, background: '#F2F2F7' }}>
               <img src={recipe.image} alt={recipe.title} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
               <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(to top, rgba(0,0,0,0.5) 0%, transparent 50%)' }} />
@@ -481,7 +461,6 @@ export default function RecipeModal({ recipe, onClose }: Props) {
             </div>
 
             <div style={{ padding: '20px 20px 100px' }}>
-              {/* Title + actions */}
               <div className="flex items-start justify-between gap-3 mb-3">
                 <h2 style={{ fontSize: 22, fontWeight: 800, color: '#1C1C1E', lineHeight: 1.2, flex: 1 }}>{recipe.title}</h2>
                 <div className="flex items-center gap-2">
@@ -498,15 +477,18 @@ export default function RecipeModal({ recipe, onClose }: Props) {
                 </div>
               </div>
 
-              {/* Author */}
-              <div className="flex items-center gap-2 mb-4">
+              {/* Author clickeable */}
+              <div 
+                onClick={handleAuthorClick}
+                className="flex items-center gap-2 mb-4 cursor-pointer hover:opacity-80 transition-opacity inline-flex"
+                style={{ cursor: 'pointer' }}
+              >
                 <img src={recipe.author?.avatar || recipe.profiles?.avatar} alt="Author" style={{ width: 30, height: 30, borderRadius: "50%", objectFit: "cover" }} />
                 <span style={{ fontSize: 13, fontWeight: 600, color: "#636366" }}>
                   {t.authorPrefix} {recipe.author?.name || recipe.profiles?.name}
                 </span>
               </div>
 
-              {/* Stats */}
               <div className="flex gap-3 mb-5">
                 {[
                   { icon: '⏱', label: `${recipe.duration} min` },
@@ -520,10 +502,8 @@ export default function RecipeModal({ recipe, onClose }: Props) {
                 ))}
               </div>
 
-              {/* Description */}
               <p style={{ fontSize: 14, color: '#636366', lineHeight: 1.6, marginBottom: 20 }}>{recipe.description}</p>
 
-              {/* Tabs */}
               <div style={{ display: 'flex', background: '#F2F2F7', borderRadius: 14, padding: 4, marginBottom: 20 }}>
                 {(['ingredients', 'steps'] as const).map(tab => (
                   <button
@@ -541,7 +521,6 @@ export default function RecipeModal({ recipe, onClose }: Props) {
                 ))}
               </div>
 
-              {/* Content Ingredients / Steps */}
               {activeTab === 'ingredients' ? (
                 <div className="flex flex-col gap-2">
                   {recipe.ingredients?.map((ingredient, i) => (
@@ -566,79 +545,38 @@ export default function RecipeModal({ recipe, onClose }: Props) {
                 </div>
               )}
 
-              {/* Botones de Editar y Eliminar (Solo visibles si el usuario es el autor) */}
               {user?.id === recipe.author_id && (
-              <div style={{ display: 'flex', gap: 10, marginTop: 28 }}>
-                {/* Botón de Editar con icono SVG */}
-                <button
-                  onClick={() => setIsEditing(true)}
-                  style={{
-                    flex: 1,
-                    height: 50,
-                    borderRadius: 16,
-                    background: '#E8F2FF',
-                    color: '#007AFF',
-                    fontWeight: 700,
-                    fontSize: 15,
-                    border: "none",
-                    cursor: 'pointer',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    gap: 8,
-                  }}
-                >
-                  <svg
-                    width="18"
-                    height="18"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2.5"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
+                <div style={{ display: 'flex', gap: 10, marginTop: 28 }}>
+                  <button
+                    onClick={() => setIsEditing(true)}
+                    style={{
+                      flex: 1, height: 50, borderRadius: 16, background: '#E8F2FF', color: '#007AFF',
+                      fontWeight: 700, fontSize: 15, border: "none", cursor: 'pointer',
+                      display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+                    }}
                   >
-                    <path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z" />
-                  </svg>
-                  {t.editRecipe}
-                </button>
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z" />
+                    </svg>
+                    {t.editRecipe}
+                  </button>
 
-                {/* Botón de Eliminar */}
-                <button
-                  onClick={() => setShowDeleteModal(true)}
-                  style={{
-                    flex: 1,
-                    height: 50,
-                    borderRadius: 16,
-                    background: '#FFF1F1',
-                    color: '#FF3B30',
-                    fontWeight: 700,
-                    fontSize: 15,
-                    border: "none",
-                    cursor: 'pointer',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    gap: 8,
-                  }}
-                >
-                  <svg
-                    width="18"
-                    height="18"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2.5"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
+                  <button
+                    onClick={() => setShowDeleteModal(true)}
+                    style={{
+                      flex: 1, height: 50, borderRadius: 16, background: '#FFF1F1', color: '#FF3B30',
+                      fontWeight: 700, fontSize: 15, border: "none", cursor: 'pointer',
+                      display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+                    }}
                   >
-                    <polyline points="3 6 5 6 21 6" />
-                    <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
-                  </svg>
-                  {t.deleteRecipe}
-                </button>
-              </div>
-            )}
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                      <polyline points="3 6 5 6 21 6" />
+                      <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+                    </svg>
+                    {t.deleteRecipe}
+                  </button>
+                </div>
+              )}
             </div>
           </>
         )}
@@ -657,6 +595,11 @@ export default function RecipeModal({ recipe, onClose }: Props) {
           </div>
         )}
       </motion.div>
+
+      {/* Si se hizo clic en un usuario que no eres tú, se abre su UserProfile */}
+      {viewingUserId && (
+        <UserProfile userId={viewingUserId} onClose={() => setViewingUserId(null)} />
+      )}
     </motion.div>
   );
 }

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 
 import { LanguageProvider } from "./context/LanguageContext";
 import { AuthProvider, useAuth } from "./context/AuthContext";
@@ -14,7 +14,6 @@ import FriendsTab from "./components/FriendsTab";
 import ProfileTab from "./components/ProfileTab";
 import LoginPage from "./components/LoginPage";
 
-
 type Tab =
   | "home"
   | "discover"
@@ -24,9 +23,18 @@ type Tab =
 
 function AppContent() {
   const { user, loading } = useAuth();
+  const [activeTab, setActiveTab] = useState<Tab>("home");
 
-  const [activeTab, setActiveTab] =
-    useState<Tab>("home");
+  // Escuchar el evento personalizado para ir al perfil propio
+  useEffect(() => {
+    const handleNavigateProfile = () => {
+      setActiveTab("profile");
+    };
+    window.addEventListener("navigate-to-profile", handleNavigateProfile);
+    return () => {
+      window.removeEventListener("navigate-to-profile", handleNavigateProfile);
+    };
+  }, []);
 
   const handleAddSuccess = () => {
     setActiveTab("profile");
@@ -93,16 +101,16 @@ export default function App() {
   return (
     <LanguageProvider>
       <AuthProvider>
-      <RecipesProvider>
-        <LikesProvider>
-          <SavesProvider>
-            <LanguageProvider>
-              <AppContent />
-            </LanguageProvider>
-          </SavesProvider>
-        </LikesProvider>
-      </RecipesProvider>
-    </AuthProvider>
+        <RecipesProvider>
+          <LikesProvider>
+            <SavesProvider>
+              <LanguageProvider>
+                <AppContent />
+              </LanguageProvider>
+            </SavesProvider>
+          </LikesProvider>
+        </RecipesProvider>
+      </AuthProvider>
     </LanguageProvider>
   );
 }

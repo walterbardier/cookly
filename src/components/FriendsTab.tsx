@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import RecipeModal from "./RecipeModal";
+import UserProfile from "./UserProfile";
 
 import { CATEGORIES } from "../data/mockData";
 import type { Recipe } from '../data/mockData';
@@ -17,6 +18,7 @@ export default function FriendsTab() {
 
   const { user } = useAuth();
   const [openRecipe, setOpenRecipe] = useState<Recipe | null>(null);
+  const [selectedUserId, setSelectedUserId] = useState<string | null>(null); // <-- Estado para el perfil seleccionado
   const [users, setUsers] = useState<any[]>([]);
   const [recipes, setRecipes] = useState<any[]>([]);
   const [following, setFollowing] = useState<string[]>([]);
@@ -168,11 +170,12 @@ export default function FriendsTab() {
             <div style={{ padding: '0 20px', marginBottom: 12 }}>
               <h2 style={{ fontSize: 18, fontWeight: 800, color: '#1C1C1E' }}>{t.suggestions}</h2>
             </div>
-            {/* Cards de usuarios */}
+            {/* Cards de usuarios (Hacemos clic en toda la tarjeta o imagen para abrir el perfil) */}
             <div style={{ display: 'flex', gap: 12, overflowX: 'auto', paddingLeft: 20, paddingRight: 20 }}>
               {suggestions.map(u => (
                 <div 
                   key={u.id}
+                  onClick={() => setSelectedUserId(u.id)}
                   className="
                     w-40 shrink-0
                     bg-white
@@ -183,6 +186,9 @@ export default function FriendsTab() {
                     flex
                     flex-col
                     items-center
+                    cursor-pointer
+                    transition-transform
+                    hover:scale-[1.02]
                   "
                 >
                   {u.avatar ? (
@@ -206,7 +212,10 @@ export default function FriendsTab() {
                   </p>
                   
                   <button
-                    onClick={() => toggleFollow(u.id)}
+                    onClick={(e) => {
+                      e.stopPropagation(); // Evita que se abra el perfil al hacer clic en el botón de seguir
+                      toggleFollow(u.id);
+                    }}
                     className={`
                       w-full py-2 rounded-4xl
                       text-xs font-extrabold
@@ -282,8 +291,11 @@ export default function FriendsTab() {
                       overflow: 'hidden',
                       boxShadow: '0 2px 8px rgba(0,0,0,0.05)',
                     }}>
-                      {/* Post header */}
-                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 16px 10px' }}>
+                      {/* Post header (Al hacer clic en el autor se abre su perfil) */}
+                      <div 
+                        onClick={() => recipe.author?.id && setSelectedUserId(recipe.author.id)}
+                        style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 16px 10px', cursor: 'pointer' }}
+                      >
                         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                           {recipe.author?.avatar ? (
                             <img src={recipe.author.avatar} alt={recipe.author?.name}
@@ -302,7 +314,10 @@ export default function FriendsTab() {
                           </div>
                         </div>
                         <button
-                          onClick={() => toggleFollow(recipe.author?.id)}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            toggleFollow(recipe.author?.id);
+                          }}
                           style={{
                             padding: '6px 14px', borderRadius: 10,
                             fontSize: 12, fontWeight: 800,
@@ -370,6 +385,11 @@ export default function FriendsTab() {
       </div>
 
       {openRecipe && <RecipeModal recipe={openRecipe} onClose={() => setOpenRecipe(null)} />}
+      
+      {/* Modal / Vista de Perfil de Usuario */}
+      {selectedUserId && (
+        <UserProfile userId={selectedUserId} onClose={() => setSelectedUserId(null)} />
+      )}
     </div>
   );
 }

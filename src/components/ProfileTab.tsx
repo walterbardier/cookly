@@ -38,6 +38,7 @@ export default function ProfileTab() {
   });
 
   const [avatarFile, setAvatarFile] = useState<File | null>(null);
+  const [bannerFile, setBannerFile] = useState<File | null>(null);
   const [toast, setToast] = useState<string | null>(null);
 
   useEffect(() => {
@@ -132,26 +133,38 @@ export default function ProfileTab() {
     if(!user || !profile) return;
 
     let avatarUrl = profile.avatar;
+    let bannerUrl = profile.banner;
 
+    // Subir Avatar si hay archivo nuevo
     if(avatarFile){
-      const fileName = `${user.id}-${Date.now()}`;
-
+      const fileName = `${user.id}-avatar-${Date.now()}`;
       const { error:uploadError } = await supabase.storage
         .from("avatars")
         .upload(fileName, avatarFile);
 
-      if(uploadError){
-        console.error(uploadError);
-        return;
+      if(!uploadError){
+        const { data } = supabase.storage
+          .from("avatars")
+          .getPublicUrl(fileName);
+        avatarUrl = data.publicUrl;
       }
-
-      const { data } = supabase.storage
-        .from("avatars")
-        .getPublicUrl(fileName);
-
-      avatarUrl = data.publicUrl;
     } else if (profile.avatar === null) {
       avatarUrl = null;
+    }
+
+    // Subir Banner si hay archivo nuevo
+    if(bannerFile){
+      const fileName = `${user.id}-banner-${Date.now()}`;
+      const { error:uploadError } = await supabase.storage
+        .from("avatars") // O puedes usar tu bucket correspondiente
+        .upload(fileName, bannerFile);
+
+      if(!uploadError){
+        const { data } = supabase.storage
+          .from("avatars")
+          .getPublicUrl(fileName);
+        bannerUrl = data.publicUrl;
+      }
     }
 
     const { error } = await supabase
@@ -161,6 +174,7 @@ export default function ProfileTab() {
         username: editData.username,
         bio: editData.bio,
         avatar: avatarUrl,
+        banner: bannerUrl,
         interests: editData.interests,
       })
       .eq("id", user.id);
@@ -174,10 +188,12 @@ export default function ProfileTab() {
       ...profile,
       ...editData,
       avatar: avatarUrl,
+      banner: bannerUrl,
     });
 
     setInterests(editData.interests);
     setAvatarFile(null);
+    setBannerFile(null);
     setIsEditing(false);
 
     setToast(t.profileSaved);
@@ -189,7 +205,6 @@ export default function ProfileTab() {
 
   const handleLogout = async () => {
     const { error } = await supabase.auth.signOut();
-
     if(error){
       console.error(error);
     }
@@ -294,278 +309,333 @@ export default function ProfileTab() {
         </div>
       </div>
 
-      <div style={{
-        padding:"20px 20px 0"
-      }}>
-        {/* Contenedor del Perfil */}
+      <div style={{ padding:"20px 20px 0" }}>
+        {/* Contenedor del Perfil con Banner */}
         <div
           style={{
             background:"white",
-            padding:24,
-            boxShadow:"0 10px 30px rgba(0,0,0,.06)"
+            boxShadow:"0 10px 30px rgba(0,0,0,.06)",
+            overflow: "hidden",
           }}
-          className="
-          rounded-4xl
-          mb-4"
+          className="rounded-4xl mb-4"
         >
+          {/* Banner de fondo */}
           <div
             style={{
-              display:"flex",
-              justifyContent:"center",
-              marginBottom:18
+              width: '100%',
+              height: 130,
+              background: bannerFile 
+                ? `url(${URL.createObjectURL(bannerFile)}) center/cover no-repeat` 
+                : profile?.banner 
+                  ? `url(${profile.banner}) center/cover no-repeat` 
+                  : 'linear-gradient(135deg, #FF6B35, #FF9A5C)',
+              position: 'relative',
             }}
           >
-            {/* Contenedor del Avatar con soporte para Hover y Borrado */}
-            <div className="relative inline-block group">
-              {avatarFile || profile?.avatar ? (
-                <img
-                  src={
-                    avatarFile
-                    ? URL.createObjectURL(avatarFile)
-                    : profile?.avatar
+            {/* Botón de lápiz gris oscuro para editar banner en modo edición */}
+            {isEditing && (
+              <label
+                style={{
+                  position: 'absolute',
+                  top: 12,
+                  right: 12,
+                  width: 32,
+                  height: 32,
+                  borderRadius: '50%',
+                  background: '#3A3A3C', // Gris oscuro
+                  color: 'white',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  cursor: 'pointer',
+                  boxShadow: '0 2px 8px rgba(0,0,0,0.25)',
+                  zIndex: 3,
+                }}
+                title="Cambiar banner"
+              >
+                <Pencil size={15} />
+                <input
+                  type="file"
+                  accept="image/*"
+                  hidden
+                  onChange={(e) =>
+                    setBannerFile(e.target.files?.[0] ?? null)
                   }
-                  alt={profile?.name}
-                  style={{
-                    width:96,
-                    height:96,
-                    borderRadius:"50%",
-                    objectFit:"cover",
-                    border:"4px solid white",
-                    boxShadow:"0 10px 25px rgba(0,0,0,.15)"
-                  }}
                 />
-              ) : (
-                <div style={{
-                  width: 96,
-                  height: 96,
-                  borderRadius: "50%",
-                  background: "#E5E5EA",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  border: "4px solid white",
-                  boxShadow: "0 10px 25px rgba(0,0,0,.15)"
-                }}>
-                  <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#8E8E93" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
-                    <circle cx="12" cy="7" r="4"/>
-                  </svg>
-                </div>
-              )}
+              </label>
+            )}
 
-              {/* Tacho de basura rojo al hacer hover en modo edición */}
-              {isEditing && (avatarFile || profile?.avatar) && (
-                <div className="absolute inset-0 rounded-full bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                  <button
-                    type="button"
-                    onClick={handleRemoveAvatar}
-                    className="w-10 h-10 rounded-full bg-red-500 text-white flex items-center justify-center shadow-lg hover:scale-110 transition-transform cursor-pointer"
-                    title="Eliminar foto"
-                  >
-                    <Trash2 size={18} />
-                  </button>
-                </div>
-              )}
+            <div
+              style={{
+                position: 'absolute',
+                bottom: 0,
+                left: 0,
+                right: 0,
+                height: 24,
+                background: 'linear-gradient(to top, rgba(0,0,0,0.15), transparent)',
+              }}
+            />
+          </div>
 
-              {/* Botón de lápiz para cambiar foto */}
-              {
-                isEditing && (
-                  <label
+          <div style={{ padding: '0 24px 24px' }}>
+            <div
+              style={{
+                display:"flex",
+                justifyContent:"center",
+                marginTop:-46,
+                marginBottom:18,
+                position: 'relative',
+                zIndex: 2,
+              }}
+            >
+              {/* Contenedor del Avatar con soporte para Hover y Borrado */}
+              <div className="relative inline-block group">
+                {avatarFile || profile?.avatar ? (
+                  <img
+                    src={
+                      avatarFile
+                      ? URL.createObjectURL(avatarFile)
+                      : profile?.avatar
+                    }
+                    alt={profile?.name}
                     style={{
-                      position:"absolute",
-                      bottom:0,
-                      right:0,
-                      width:32,
-                      height:32,
+                      width:84,
+                      height:84,
                       borderRadius:"50%",
-                      background:"#FF6B35",
-                      color:"white",
-                      display:"flex",
-                      alignItems:"center",
-                      justifyContent:"center",
-                      cursor:"pointer",
-                      boxShadow: "0 4px 10px rgba(0,0,0,0.15)"
+                      objectFit:"cover",
+                      border:"4px solid white",
+                      boxShadow:"0 8px 20px rgba(0,0,0,.15)"
+                    }}
+                  />
+                ) : (
+                  <div style={{
+                    width: 84,
+                    height: 84,
+                    borderRadius: "50%",
+                    background: "#E5E5EA",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    border: "4px solid white",
+                    boxShadow: "0 8px 20px rgba(0,0,0,.15)"
+                  }}>
+                    <svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="#8E8E93" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
+                      <circle cx="12" cy="7" r="4"/>
+                    </svg>
+                  </div>
+                )}
+
+                {/* Tacho de basura rojo al hacer hover en modo edición */}
+                {isEditing && (avatarFile || profile?.avatar) && (
+                  <div className="absolute inset-0 rounded-full bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                    <button
+                      type="button"
+                      onClick={handleRemoveAvatar}
+                      className="w-10 h-10 rounded-full bg-red-500 text-white flex items-center justify-center shadow-lg hover:scale-110 transition-transform cursor-pointer"
+                      title="Eliminar foto"
+                    >
+                      <Trash2 size={18} />
+                    </button>
+                  </div>
+                )}
+
+                {/* Botón de lápiz para cambiar foto */}
+                {
+                  isEditing && (
+                    <label
+                      style={{
+                        position:"absolute",
+                        bottom:0,
+                        right:0,
+                        width:28,
+                        height:28,
+                        borderRadius:"50%",
+                        background:"#FF6B35",
+                        color:"white",
+                        display:"flex",
+                        alignItems:"center",
+                        justifyContent:"center",
+                        cursor:"pointer",
+                        boxShadow: "0 4px 10px rgba(0,0,0,0.15)"
+                      }}
+                    >
+                      <Pencil size={13}/>
+                      <input
+                        type="file"
+                        accept="image/*"
+                        hidden
+                        onChange={(e)=>
+                          setAvatarFile(
+                            e.target.files?.[0] ?? null
+                          )
+                        }
+                      />
+                    </label>
+                  )
+                }
+              </div>
+            </div>
+
+            <div style={{ textAlign:"center" }}>
+              {
+                isEditing ? (
+                  <input
+                    value={editData.name}
+                    onChange={(e)=>
+                      setEditData({
+                        ...editData,
+                        name:e.target.value
+                      })
+                    }
+                    className="
+                    w-full
+                    text-center
+                    text-2xl
+                    font-extrabold
+                    bg-[#F2F2F7]
+                    rounded-xl
+                    px-3 py-2
+                    outline-none
+                    "
+                  />
+                ) : (
+                  <h2
+                    style={{
+                      fontSize:24,
+                      fontWeight:800,
+                      color:"#1C1C1E"
                     }}
                   >
-                    <Pencil size={15}/>
-                    <input
-                      type="file"
-                      accept="image/*"
-                      hidden
-                      onChange={(e)=>
-                        setAvatarFile(
-                          e.target.files?.[0] ?? null
-                        )
-                      }
-                    />
-                  </label>
+                    {profile?.name}
+                  </h2>
+                )
+              }
+
+              {
+                isEditing ? (
+                  <input
+                    value={editData.username}
+                    onChange={(e)=>
+                      setEditData({
+                        ...editData,
+                        username:e.target.value
+                      })
+                    }
+                    className="
+                    mt-2
+                    w-full
+                    text-center
+                    bg-[#F2F2F7]
+                    rounded-xl
+                    px-3 py-2
+                    text-zinc-500
+                    outline-none
+                    "
+                  />
+                ) : (
+                  <p
+                    style={{
+                      color:"#8E8E93",
+                      fontWeight:600,
+                      marginTop:4
+                    }}
+                  >
+                    @{profile?.username}
+                  </p>
+                )
+              }
+              {
+                isEditing ? (
+                  <textarea
+                    value={editData.bio}
+                    onChange={(e)=>
+                      setEditData({
+                        ...editData,
+                        bio:e.target.value
+                      })
+                    }
+                    className="
+                    mt-4
+                    w-full
+                    rounded-2xl
+                    bg-[#F2F2F7]
+                    p-3
+                    text-center
+                    text-sm
+                    text-zinc-700
+                    outline-none
+                    resize-none
+                    "
+                    rows={3}
+                  />
+                ) : (
+                  <p
+                    className="
+                    mx-auto
+                    mt-3
+                    max-w-[320px]
+                    text-sm
+                    leading-relaxed
+                    text-zinc-500
+                    "
+                  >
+                    {profile?.bio}
+                  </p>
                 )
               }
             </div>
-          </div>
 
-          <div style={{
-            textAlign:"center"
-          }}>
-            {
-              isEditing ? (
-
-                <input
-                  value={editData.name}
-                  onChange={(e)=>
-                    setEditData({
-                      ...editData,
-                      name:e.target.value
-                    })
-                  }
+            {/* Contenedor de Contadores */}
+            <div className="
+            mt-6
+            grid
+            grid-cols-3
+            gap-3
+            ">
+              {[
+                {
+                  value: myRecipes.length,
+                  label: t.recipesCount
+                },
+                {
+                  value: followersCount,
+                  label: t.followers
+                },
+                {
+                  value: followingCount,
+                  label: t.following
+                }
+              ].map(stat=>(
+                <div
+                  key={stat.label}
                   className="
-                  w-full
+                  rounded-2xl
+                  bg-[#F7F7FA]
+                  px-2
+                  py-4
                   text-center
+                  "
+                >
+                  <div className="
                   text-2xl
                   font-extrabold
-                  bg-[#F2F2F7]
-                  rounded-xl
-                  px-3 py-2
-                  outline-none
-                  "
-                />
-              ) : (
-                <h2
-                  style={{
-                    fontSize:24,
-                    fontWeight:800,
-                    color:"#1C1C1E"
-                  }}
-                >
-                  {profile?.name}
-                </h2>
-              )
-            }
+                  text-zinc-900
+                  ">
+                    {stat.value}
+                  </div>
 
-            {
-              isEditing ? (
-                <input
-                  value={editData.username}
-                  onChange={(e)=>
-                    setEditData({
-                      ...editData,
-                      username:e.target.value
-                    })
-                  }
-                  className="
-                  mt-2
-                  w-full
-                  text-center
-                  bg-[#F2F2F7]
-                  rounded-xl
-                  px-3 py-2
-                  text-zinc-500
-                  outline-none
-                  "
-                />
-              ) : (
-                <p
-                  style={{
-                    color:"#8E8E93",
-                    fontWeight:600,
-                    marginTop:4
-                  }}
-                >
-                  @{profile?.username}
-                </p>
-              )
-            }
-             {
-              isEditing ? (
-                <textarea
-                  value={editData.bio}
-                  onChange={(e)=>
-                    setEditData({
-                      ...editData,
-                      bio:e.target.value
-                    })
-                  }
-                  className="
-                  mt-4
-                  w-full
-                  rounded-2xl
-                  bg-[#F2F2F7]
-                  p-3
-                  text-center
-                  text-sm
-                  text-zinc-700
-                  outline-none
-                  resize-none
-                  "
-                  rows={3}
-                />
-              ) : (
-                <p
-                  className="
-                  mx-auto
-                  mt-3
-                  max-w-[320px]
-                  text-sm
-                  leading-relaxed
-                  text-zinc-500
-                  "
-                >
-                  {profile?.bio}
-                </p>
-              )
-            }
-          </div>
-
-          {/* Contenedor de Contadores */}
-          <div className="
-          mt-6
-          grid
-          grid-cols-3
-          gap-3
-          ">
-            {[
-              {
-                value: myRecipes.length,
-                label: t.recipesCount
-              },
-              {
-                value: followersCount,
-                label: t.followers
-              },
-              {
-                value: followingCount,
-                label: t.following
-              }
-            ].map(stat=>(
-              // Tarjetas con contadores
-              <div
-                key={stat.label}
-                className="
-                rounded-2xl
-                bg-[#F7F7FA]
-                px-2
-                py-4
-                text-center
-                "
-              >
-                <div className="
-                text-2xl
-                font-extrabold
-                text-zinc-900
-                ">
-                  {stat.value}
+                  <div className="
+                  mt-1
+                  text-xs
+                  font-semibold
+                  text-zinc-400
+                  ">
+                    {stat.label}
+                  </div>
                 </div>
-
-                <div className="
-                mt-1
-                text-xs
-                font-semibold
-                text-zinc-400
-                ">
-                  {stat.label}
-                </div>
-              </div>
-            ))}
+              ))}
+            </div>
           </div>
         </div>
 
@@ -595,7 +665,6 @@ export default function ProfileTab() {
             gap-2
             ">
               {isEditing ? (
-                // MODO EDICIÓN: Muestra TODAS las categorías y permite alternar su selección
                 CATEGORIES.map(cat => {
                   const isSelected = editData.interests.includes(cat.id);
                   return (
@@ -623,7 +692,6 @@ export default function ProfileTab() {
                   );
                 })
               ) : (
-                // MODO VISTA: Muestra únicamente los intereses guardados del usuario
                 interests.map(id => {
                   const cat = CATEGORIES.find(c => c.id === id);
                   if(!cat) return null;
@@ -755,7 +823,6 @@ export default function ProfileTab() {
               </p>
             </div>
           ) : (
-            // Card con mi receta / guardada
             <div className="
             grid
             grid-cols-3
