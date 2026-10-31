@@ -50,7 +50,7 @@ export default function HomeTab() {
         {/* Logo en texto (imagen PNG) a la izquierda */}
         <div style={{ display: 'flex', alignItems: 'center' }}>
           <img 
-            src="/cookly-txtlogo.png" 
+            src="/cookly-txt-beta-logo.png" 
             alt="Cookly" 
             style={{ height: 38, objectFit: 'contain' }} 
           />
