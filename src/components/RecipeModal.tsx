@@ -36,6 +36,7 @@ export default function RecipeModal({ recipe, onClose }: Props) {
   const [servings, setServings] = useState(recipe.servings ? String(recipe.servings) : '');
   const [ingredients, setIngredients] = useState<string[]>(recipe.ingredients?.length ? recipe.ingredients : ['', '']);
   const [steps, setSteps] = useState<string[]>(recipe.steps?.length ? recipe.steps : ['', '']);
+  const [isPublic, setIsPublic] = useState<boolean>(recipe.is_public ?? true); // <-- Estado para la visibilidad
   const [photo, setPhoto] = useState<string | null>(recipe.image || null);
   const [photoFile, setPhotoFile] = useState<File | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
@@ -54,7 +55,6 @@ export default function RecipeModal({ recipe, onClose }: Props) {
   const likes = getLikes(recipe.id);
 
   const currentCategory = CATEGORIES.find(c => c.id === recipe.category);
-  const editCategoryObj = CATEGORIES.find(c => c.id === category);
 
   const handleLike = async (e: React.MouseEvent<HTMLButtonElement>) => {
     e.stopPropagation();
@@ -130,7 +130,7 @@ export default function RecipeModal({ recipe, onClose }: Props) {
         imageUrl = data.publicUrl;
       }
 
-      // 2. Actualizar la receta en la BDD
+      // 2. Actualizar la receta en la BDD incluyendo is_public
       const { error: updateError } = await supabase
         .from("recipes")
         .update({
@@ -142,6 +142,7 @@ export default function RecipeModal({ recipe, onClose }: Props) {
           image: imageUrl,
           ingredients: ingredients.filter(i => i.trim() !== ""),
           steps: steps.filter(s => s.trim() !== ""),
+          is_public: isPublic, // <-- Guardamos la visibilidad actualizada
         })
         .eq("id", recipe.id);
 
@@ -357,6 +358,57 @@ export default function RecipeModal({ recipe, onClose }: Props) {
                 <input type="number" value={servings} onChange={e => setServings(e.target.value)} style={inputStyle} />
               </Field>
             </div>
+
+            {/* Visibilidad de la receta - Selector moderno */}
+            <Field label={tAdd.visibility || "Visibilidad"}>
+              <div style={{
+                display: 'flex',
+                background: 'white',
+                borderRadius: 14,
+                padding: 4,
+                boxShadow: '0 1px 4px rgba(0,0,0,0.06)',
+              }}>
+                <button
+                  type="button"
+                  onClick={() => setIsPublic(true)}
+                  style={{
+                    flex: 1,
+                    padding: '10px 16px',
+                    borderRadius: 11,
+                    border: 'none',
+                    background: isPublic ? 'linear-gradient(135deg, #FF6B35, #FF9A5C)' : 'transparent',
+                    color: isPublic ? 'white' : '#8E8E93',
+                    fontWeight: 700,
+                    fontSize: 14,
+                    cursor: 'pointer',
+                    boxShadow: isPublic ? '0 4px 12px rgba(255,107,53,0.3)' : 'none',
+                    transition: 'all 0.2s ease',
+                  }}
+                >
+                  🌍 {tAdd.public || "Público"}
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setIsPublic(false)}
+                  style={{
+                    flex: 1,
+                    padding: '10px 16px',
+                    borderRadius: 11,
+                    border: 'none',
+                    background: !isPublic ? 'linear-gradient(135deg, #FF6B35, #FF9A5C)' : 'transparent',
+                    color: !isPublic ? 'white' : '#8E8E93',
+                    fontWeight: 700,
+                    fontSize: 14,
+                    cursor: 'pointer',
+                    boxShadow: !isPublic ? '0 4px 12px rgba(255,107,53,0.3)' : 'none',
+                    transition: 'all 0.2s ease',
+                  }}
+                >
+                  🔒 {tAdd.private || "Privado"}
+                </button>
+              </div>
+            </Field>
 
             {/* Ingredientes */}
             <Field label={tAdd.ingredients} required>

@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Pencil, Plus, Check } from "lucide-react";
+import { Pencil, Plus, Check, Trash2 } from "lucide-react";
 
 import { CATEGORIES, Recipe } from "../data/mockData";
 import RecipeModal from "./RecipeModal";
@@ -10,7 +10,6 @@ import { useAuth } from "../context/AuthContext";
 import { useRecipes } from "../context/RecipesContext";
 import { useSaves } from "../context/SavesContext";
 
-
 export default function ProfileTab() {
   const { language, setLanguage } = useLanguage();
   const t = translations[language].profile;
@@ -20,10 +19,10 @@ export default function ProfileTab() {
   const { savedRecipes } = useSaves();
 
   const [profile, setProfile] = useState<any>(null);
+  const [followersCount, setFollowersCount] = useState(0);
+  const [followingCount, setFollowingCount] = useState(0);
 
   const [interests, setInterests] = useState<string[]>([]);
-  const [showInterests, setShowInterests] = useState(false);
-
   const [activeTab, setActiveTab] = useState<"recipes" | "saved">("recipes");
   
   const [openRecipe, setOpenRecipe] = useState<Recipe | null>(null);
@@ -35,6 +34,7 @@ export default function ProfileTab() {
     name: "",
     username: "",
     bio: "",
+    interests: [] as string[],
   });
 
   const [avatarFile, setAvatarFile] = useState<File | null>(null);
@@ -57,18 +57,38 @@ export default function ProfileTab() {
 
       setProfile(profileData);
 
+      // Cargar contador real de seguidores
+      const { count: followersTotal, error: followersError } = await supabase
+        .from("follows")
+        .select("*", { count: 'exact', head: true })
+        .eq("following_id", user.id);
+
+      if (!followersError) {
+        setFollowersCount(followersTotal || 0);
+      }
+
+      // Cargar contador real de seguidos
+      const { count: followingTotal, error: followingError } = await supabase
+        .from("follows")
+        .select("*", { count: 'exact', head: true })
+        .eq("follower_id", user.id);
+
+      if (!followingError) {
+        setFollowingCount(followingTotal || 0);
+      }
+
       setEditData({
         name: profileData.name || "",
         username: profileData.username || "",
         bio: profileData.bio || "",
+        interests: profileData.interests || [],
       });
 
       setInterests(profileData.interests || []);
-
     };
 
     loadData();
-  },[user]);
+  }, [user]);
 
   const myRecipes = recipes.filter(
     recipe => recipe.author_id === user?.id
@@ -80,12 +100,32 @@ export default function ProfileTab() {
 
   const startEditing = () => {
     setEditData({
-      name: profile.name,
-      username: profile.username,
-      bio: profile.bio,
+      name: profile.name || "",
+      username: profile.username || "",
+      bio: profile.bio || "",
+      interests: profile.interests || [],
     });
 
     setIsEditing(true);
+  };
+
+  const handleRemoveAvatar = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setAvatarFile(null);
+    setProfile((prev: any) => ({ ...prev, avatar: null }));
+  };
+
+  const toggleEditInterest = (catId: string) => {
+    setEditData(prev => {
+      const exists = prev.interests.includes(catId);
+      return {
+        ...prev,
+        interests: exists
+          ? prev.interests.filter(id => id !== catId)
+          : [...prev.interests, catId]
+      };
+    });
   };
 
   const saveProfile = async() => {
@@ -110,6 +150,8 @@ export default function ProfileTab() {
         .getPublicUrl(fileName);
 
       avatarUrl = data.publicUrl;
+    } else if (profile.avatar === null) {
+      avatarUrl = null;
     }
 
     const { error } = await supabase
@@ -119,6 +161,7 @@ export default function ProfileTab() {
         username: editData.username,
         bio: editData.bio,
         avatar: avatarUrl,
+        interests: editData.interests,
       })
       .eq("id", user.id);
 
@@ -133,6 +176,7 @@ export default function ProfileTab() {
       avatar: avatarUrl,
     });
 
+    setInterests(editData.interests);
     setAvatarFile(null);
     setIsEditing(false);
 
@@ -240,7 +284,7 @@ export default function ProfileTab() {
                   {/* Settings button */}
                   <button onClick={() => setShowSettings(true)} className="flex h-10 w-10 items-center justify-center rounded-4xl bg-white shadow-md transition-all hover:scale-105 active:scale-95" >
                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"> <circle cx="12" cy="12" r="3" />
-                    <path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/>
+                    <path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06-.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/>
                     </svg>
                   </button>
                 </>
@@ -271,33 +315,62 @@ export default function ProfileTab() {
               marginBottom:18
             }}
           >
-            <label
-              style={{
-                position:"relative",
-                cursor:isEditing ? "pointer" : "default"
-              }}
-            >
-              {/* Avatar / Profile Pic */}
-              <img
-                src={
-                  avatarFile
-                  ? URL.createObjectURL(avatarFile)
-                  : profile?.avatar
-                }
-                alt={profile?.name}
-                style={{
-                  width:96,
-                  height:96,
-                  borderRadius:"50%",
-                  objectFit:"cover",
-                  border:"4px solid white",
-                  boxShadow:"0 10px 25px rgba(0,0,0,.15)"
-                }}
-              />
+            {/* Contenedor del Avatar con soporte para Hover y Borrado */}
+            <div className="relative inline-block group">
+              {avatarFile || profile?.avatar ? (
+                <img
+                  src={
+                    avatarFile
+                    ? URL.createObjectURL(avatarFile)
+                    : profile?.avatar
+                  }
+                  alt={profile?.name}
+                  style={{
+                    width:96,
+                    height:96,
+                    borderRadius:"50%",
+                    objectFit:"cover",
+                    border:"4px solid white",
+                    boxShadow:"0 10px 25px rgba(0,0,0,.15)"
+                  }}
+                />
+              ) : (
+                <div style={{
+                  width: 96,
+                  height: 96,
+                  borderRadius: "50%",
+                  background: "#E5E5EA",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  border: "4px solid white",
+                  boxShadow: "0 10px 25px rgba(0,0,0,.15)"
+                }}>
+                  <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#8E8E93" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
+                    <circle cx="12" cy="7" r="4"/>
+                  </svg>
+                </div>
+              )}
 
+              {/* Tacho de basura rojo al hacer hover en modo edición */}
+              {isEditing && (avatarFile || profile?.avatar) && (
+                <div className="absolute inset-0 rounded-full bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                  <button
+                    type="button"
+                    onClick={handleRemoveAvatar}
+                    className="w-10 h-10 rounded-full bg-red-500 text-white flex items-center justify-center shadow-lg hover:scale-110 transition-transform cursor-pointer"
+                    title="Eliminar foto"
+                  >
+                    <Trash2 size={18} />
+                  </button>
+                </div>
+              )}
+
+              {/* Botón de lápiz para cambiar foto */}
               {
                 isEditing && (
-                  <div
+                  <label
                     style={{
                       position:"absolute",
                       bottom:0,
@@ -309,26 +382,26 @@ export default function ProfileTab() {
                       color:"white",
                       display:"flex",
                       alignItems:"center",
-                      justifyContent:"center"
+                      justifyContent:"center",
+                      cursor:"pointer",
+                      boxShadow: "0 4px 10px rgba(0,0,0,0.15)"
                     }}
                   >
                     <Pencil size={15}/>
-                  </div>
+                    <input
+                      type="file"
+                      accept="image/*"
+                      hidden
+                      onChange={(e)=>
+                        setAvatarFile(
+                          e.target.files?.[0] ?? null
+                        )
+                      }
+                    />
+                  </label>
                 )
               }
-              
-              <input
-                type="file"
-                accept="image/*"
-                hidden
-                disabled={!isEditing}
-                onChange={(e)=>
-                  setAvatarFile(
-                    e.target.files?.[0] ?? null
-                  )
-                }
-              />
-            </label>
+            </div>
           </div>
 
           <div style={{
@@ -452,16 +525,16 @@ export default function ProfileTab() {
           ">
             {[
               {
-                value:myRecipes.length,
-                label:t.recipesCount
+                value: myRecipes.length,
+                label: t.recipesCount
               },
               {
-                value:profile?.followers ?? 0,
-                label:t.followers
+                value: followersCount,
+                label: t.followers
               },
               {
-                value:profile?.following ?? 0,
-                label:t.following
+                value: followingCount,
+                label: t.following
               }
             ].map(stat=>(
               // Tarjetas con contadores
@@ -521,70 +594,76 @@ export default function ProfileTab() {
             flex-wrap
             gap-2
             ">
-              {interests.map(id=>{
-                const cat =
-                CATEGORIES.find(
-                  c=>c.id===id
-                );
-                if(!cat) return null;
-                return (
-                  <div
-                    key={cat.id}
-                    className="
-                    flex
-                    items-center
-                    gap-1.5
-                    rounded-full
-                    px-3
-                    py-1.5
-                    "
-                    style={{
-                      background:cat.bgColor
-                    }}
-                  >
-                    <span>
-                      {cat.emoji}
-                    </span>
-
-                    <span
-                      className="
-                      text-xs
-                      font-bold
-                      "
+              {isEditing ? (
+                // MODO EDICIÓN: Muestra TODAS las categorías y permite alternar su selección
+                CATEGORIES.map(cat => {
+                  const isSelected = editData.interests.includes(cat.id);
+                  return (
+                    <button
+                      key={cat.id}
+                      type="button"
+                      onClick={() => toggleEditInterest(cat.id)}
+                      className="flex items-center gap-1.5 rounded-full px-3 py-1.5 transition-all cursor-pointer"
                       style={{
-                        color:cat.color
+                        background: isSelected ? cat.bgColor : '#F2F2F7',
+                        border: `1.5px solid ${isSelected ? cat.color : '#E5E5EA'}`,
+                        opacity: isSelected ? 1 : 0.6,
                       }}
                     >
-                      {cat.name[language]}
-                    </span>
-                  </div>
-                )
-              })}
+                      <span>{cat.emoji}</span>
+                      <span
+                        className="text-xs font-bold"
+                        style={{
+                          color: isSelected ? cat.color : '#8E8E93',
+                        }}
+                      >
+                        {cat.name[language]}
+                      </span>
+                    </button>
+                  );
+                })
+              ) : (
+                // MODO VISTA: Muestra únicamente los intereses guardados del usuario
+                interests.map(id => {
+                  const cat = CATEGORIES.find(c => c.id === id);
+                  if(!cat) return null;
+                  return (
+                    <div
+                      key={cat.id}
+                      className="
+                      flex
+                      items-center
+                      gap-1.5
+                      rounded-full
+                      px-3
+                      py-1.5
+                      "
+                      style={{
+                        background: cat.bgColor
+                      }}
+                    >
+                      <span>
+                        {cat.emoji}
+                      </span>
+                      <span
+                        className="
+                        text-xs
+                        font-bold
+                        "
+                        style={{
+                          color: cat.color
+                        }}
+                      >
+                        {cat.name[language]}
+                      </span>
+                    </div>
+                  );
+                })
+              )}
 
-              <button
-                onClick={()=>
-                  setShowInterests(
-                    !showInterests
-                  )
-                }
-                className="
-                flex
-                h-9
-                w-9
-                items-center
-                justify-center
-                rounded-full
-                bg-gradient-to-br
-                from-[#FF6B35]
-                to-[#FF9A5C]
-                text-white
-                shadow-lg
-                transition
-                active:scale-95
-                "
-              >
-                <Plus size={18}/>
-              </button>
+              {!isEditing && interests.length === 0 && (
+                <p className="text-xs text-zinc-400 italic">Sin intereses seleccionados</p>
+              )}
             </div>
           </div>
         </div>
@@ -600,19 +679,19 @@ export default function ProfileTab() {
         ">
           {([
             {
-              key:"recipes",
-              label:t.myRecipes,
-              icon:"👨‍🍳"
+              key: "recipes" as const,
+              label: t.myRecipes,
+              icon: "👨‍🍳"
             },
             {
-              key:"saved",
-              label:t.saved,
-              icon:"🔖"
+              key: "saved" as const,
+              label: t.saved,
+              icon: "🔖"
             }
-          ] as const).map(tab=>(
+          ] as { key: "recipes" | "saved"; label: string; icon: string }[]).map(tab => (
             <button
               key={tab.key}
-              onClick={()=>
+              onClick={() =>
                 setActiveTab(tab.key)
               }
               className={`
@@ -623,7 +702,7 @@ export default function ProfileTab() {
               font-bold
               transition
               ${
-                activeTab===tab.key
+                activeTab === tab.key
                 ?
                 "bg-gradient-to-br from-[#FF6B35] to-[#FF9A5C] text-white shadow-md"
                 :

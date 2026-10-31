@@ -101,7 +101,11 @@ export const translations = {
 
       editTitle: "Editar receta",
       updateSuccessTitle: "Cambios guardados!",
-      updateSuccessMessage: "La receta ha sido actualizada correctamente."
+      updateSuccessMessage: "La receta ha sido actualizada correctamente.",
+
+      visibility: "Visibilidad de la receta",
+      public: "Público",
+      private: "Privado",
     },
     recipeModal: {
         authorPrefix: "por",
@@ -221,7 +225,11 @@ export const translations = {
 
       editTitle: "Edit recipe",
       updateSuccessTitle: "Changes saved!",
-      updateSuccessMessage: "The recipe has been successfully updated."
+      updateSuccessMessage: "The recipe has been successfully updated.",
+
+      visibility: "Recipe Visibility",
+      public: "Public",
+      private: "Private",
     },
     recipeModal: {
       authorPrefix: "by",

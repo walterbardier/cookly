@@ -45,6 +45,8 @@ export type Recipe = {
 
   isLiked?: boolean;
   isSaved?: boolean;
+  
+  is_public?: boolean;
 };
 
 export const CATEGORIES: Category[] = [

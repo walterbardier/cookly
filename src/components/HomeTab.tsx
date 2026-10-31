@@ -17,15 +17,18 @@ export default function HomeTab() {
   const { initializeLikes } = useLikes();
   const { recipes } = useRecipes();
 
-  useEffect(() => {
-      initializeLikes(recipes);
-  }, [recipes]);
+  // Filtrar exclusivamente las recetas públicas para todo el Home
+  const publicRecipes = recipes.filter(recipe => recipe.is_public !== false);
 
-  const popular = recipes.slice(0, 4);
+  useEffect(() => {
+      initializeLikes(publicRecipes);
+  }, [publicRecipes]);
+
+  const popular = publicRecipes.slice(0, 4);
 
   const suggested = activeCategory
-  ? recipes.filter(r => r.category === activeCategory)
-  : recipes;
+    ? publicRecipes.filter(r => r.category === activeCategory)
+    : publicRecipes;
 
   return (
     <div style={{ background: '#F2F2F7', minHeight: '100vh', paddingBottom: 100 }}>
@@ -38,7 +41,6 @@ export default function HomeTab() {
         position: 'sticky',
         top: 0,
         zIndex: 30,
-        // paddingTop: 'env(safe-area-inset-top, 44px)',
         paddingTop: 20,
         paddingLeft: 20,
         paddingRight: 20,
@@ -47,7 +49,7 @@ export default function HomeTab() {
         justifyContent: 'space-between',
         alignItems: 'center',
       }}>
-        {/* Logo en texto (imagen PNG) a la izquierda */}
+        {/* Logo */}
         <div style={{ display: 'flex', alignItems: 'center' }}>
           <img 
             src="/cookly-txt-beta-logo.png" 
@@ -75,8 +77,8 @@ export default function HomeTab() {
           </svg>
         </button>
       </div>
-  
-      {/* 2. Título Principal (se oculta suavemente hacia arriba al hacer scroll) */}
+ 
+      {/* 2. Título Principal */}
       <div style={{ padding: '0 20px', marginTop: 12, marginBottom: 20 }}>
         <p style={{ fontSize: 13, color: '#AEAEB2', fontWeight: 600, marginBottom: 4 }}>
           {t.greeting}
@@ -85,7 +87,7 @@ export default function HomeTab() {
           {t.title}
         </h1>
       </div>
-  
+ 
       {/* 3. Contenido de las Secciones (Populares, Categorías, Sugeridos) */}
       <div style={{ padding: '0 0' }}>
         <div style={{ padding: '0 0 0 0' }}>

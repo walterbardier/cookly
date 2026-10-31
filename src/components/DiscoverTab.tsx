@@ -3,31 +3,30 @@ import RecipeCard from './RecipeCard';
 import RecipeModal from './RecipeModal';
 import { Recipe, CATEGORIES } from '../data/mockData';
 import { useRecipes } from "../context/RecipesContext";
-import { useLanguage } from '../context/LanguageContext'; // <-- Importamos nuestro hook
-import { translations } from '../utils/translations'; // <-- Importamos los textos
-
+import { useLanguage } from '../context/LanguageContext';
+import { translations } from '../utils/translations';
 
 export default function DiscoverTab() {
-  const { language } = useLanguage(); // Extraemos el idioma actual
-  const t = translations[language].discover; // Accedemos a los textos
+  const { language } = useLanguage();
+  const t = translations[language].discover;
 
   const { recipes } = useRecipes();
+
+  // 1. Filtrar solo las recetas públicas para toda la pestaña Discover
+  const publicRecipes = recipes.filter(recipe => recipe.is_public !== false);
 
   const [query, setQuery] = useState('');
   const [activeCategory, setActiveCategory] = useState<string | null>(null);
   const [openRecipe, setOpenRecipe] = useState<Recipe | null>(null);
   const [focused, setFocused] = useState(false);
 
-  const filtered = recipes.filter(recipe => {
+  const filtered = publicRecipes.filter(recipe => {
     const search = query.toLowerCase();
   
     const matchesQuery =
       search === "" ||
-  
       recipe.title.toLowerCase().includes(search) ||
-  
       recipe.description.toLowerCase().includes(search) ||
-  
       recipe.ingredients.some(i =>
         i.toLowerCase().includes(search)
       );
@@ -39,8 +38,8 @@ export default function DiscoverTab() {
     return matchesQuery && matchesCategory;
   });
 
-  const trending = [...recipes]
-    .sort((a, b) => b.likes - a.likes)
+  const trending = [...publicRecipes]
+    .sort((a, b) => (b.likes || 0) - (a.likes || 0))
     .slice(0, 4);
 
   return (
