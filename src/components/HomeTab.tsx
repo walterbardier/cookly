@@ -1,18 +1,26 @@
 import { useEffect, useState } from 'react';
 import RecipeCard from './RecipeCard';
 import RecipeModal from './RecipeModal';
+import NotificationsModal from './NotificationsModal';
 import { Recipe, CATEGORIES } from '../data/mockData';
 import { useLanguage } from '../context/LanguageContext';
 import { translations } from '../utils/translations';
 import { useRecipes } from "../context/RecipesContext";
 import { useLikes } from "../context/LikesContext";
+import { useAuth } from "../context/AuthContext";
+import { supabase } from "../lib/supabase";
 
 export default function HomeTab() {
   const { language } = useLanguage();
   const t = translations[language].home;
+  const { user } = useAuth();
 
   const [openRecipe, setOpenRecipe] = useState<Recipe | null>(null);
   const [activeCategory, setActiveCategory] = useState<string | null>(null);
+  
+  // Estados para notificaciones
+  const [unreadCount, setUnreadCount] = useState(0);
+  const [showNotifications, setShowNotifications] = useState(false);
 
   const { initializeLikes } = useLikes();
   const { recipes } = useRecipes();
@@ -23,6 +31,23 @@ export default function HomeTab() {
   useEffect(() => {
       initializeLikes(publicRecipes);
   }, [publicRecipes]);
+
+  // Cargar contador de notificaciones no leídas
+  useEffect(() => {
+    if (!user) return;
+
+    async function fetchUnreadCount() {
+      const { count } = await supabase
+        .from('notifications')
+        .select('*', { count: 'exact', head: true })
+        .eq('recipient_id', user.id)
+        .eq('read', false);
+
+      setUnreadCount(count || 0);
+    }
+
+    fetchUnreadCount();
+  }, [user]);
 
   const popular = publicRecipes.slice(0, 4);
 
@@ -59,22 +84,48 @@ export default function HomeTab() {
         </div>
 
         {/* Botón de notificaciones a la derecha */}
-        <button style={{
-          width: 40,
-          height: 40,
-          borderRadius: 14,
-          background: 'white',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
-          border: 'none',
-          cursor: 'pointer',
-        }}>
+        <button
+          onClick={() => setShowNotifications(true)}
+          style={{
+            width: 40,
+            height: 40,
+            borderRadius: 14,
+            background: 'white',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
+            border: 'none',
+            cursor: 'pointer',
+            position: 'relative',
+          }}
+        >
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#1C1C1E" strokeWidth="2" strokeLinecap="round">
             <path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9"/>
             <path d="M13.73 21a2 2 0 01-3.46 0"/>
           </svg>
+
+          {/* Badge de notificación */}
+          {unreadCount > 0 && (
+            <span style={{
+              position: 'absolute',
+              top: -4,
+              right: -4,
+              background: '#FF3B30',
+              color: 'white',
+              fontSize: 10,
+              fontWeight: 800,
+              width: 18,
+              height: 18,
+              borderRadius: '50%',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              border: '2px solid white',
+            }}>
+              {unreadCount}
+            </span>
+          )}
         </button>
       </div>
  
@@ -177,6 +228,16 @@ export default function HomeTab() {
 
         {openRecipe && (
           <RecipeModal recipe={openRecipe} onClose={() => setOpenRecipe(null)} />
+        )}
+
+        {/* Modal de Notificaciones */}
+        {showNotifications && (
+          <NotificationsModal
+            onClose={() => {
+              setShowNotifications(false);
+              setUnreadCount(0);
+            }}
+          />
         )}
       </div>
     </div>
