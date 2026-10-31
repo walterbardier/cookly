@@ -2,6 +2,8 @@ import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../context/AuthContext';
+import { useLanguage } from '../context/LanguageContext';
+import { translations } from '../utils/translations';
 import UserProfile from './UserProfile';
 
 type Props = {
@@ -10,16 +12,19 @@ type Props = {
 
 export default function NotificationsModal({ onClose }: Props) {
   const { user } = useAuth();
+  const { language } = useLanguage();
+  const t = translations[language].notifications;
+
   const [notifications, setNotifications] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
 
   useEffect(() => {
     if (!user) return;
+    const userId = user.id;
 
     async function fetchNotifications() {
       try {
-        // Traemos las notificaciones con la info del usuario que la generó (sender)
         const { data, error } = await supabase
           .from('notifications')
           .select(`
@@ -31,7 +36,7 @@ export default function NotificationsModal({ onClose }: Props) {
               avatar
             )
           `)
-          .eq('recipient_id', user.id)
+          .eq('recipient_id', userId)
           .order('created_at', { ascending: false });
 
         if (error) throw error;
@@ -41,7 +46,7 @@ export default function NotificationsModal({ onClose }: Props) {
         await supabase
           .from('notifications')
           .update({ read: true })
-          .eq('recipient_id', user.id)
+          .eq('recipient_id', userId)
           .eq('read', false);
 
       } catch (err) {
@@ -88,7 +93,7 @@ export default function NotificationsModal({ onClose }: Props) {
       >
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
           <h2 style={{ fontSize: 20, fontWeight: 800, color: '#1C1C1E', margin: 0 }}>
-            Notificaciones
+            {t.title}
           </h2>
           <button
             onClick={onClose}
@@ -110,12 +115,12 @@ export default function NotificationsModal({ onClose }: Props) {
         </div>
 
         {loading ? (
-          <div style={{ textAlign: 'center', padding: '40px 0', color: '#8E8E93' }}>Cargando...</div>
+          <div style={{ textAlign: 'center', padding: '40px 0', color: '#8E8E93' }}>{t.loading}</div>
         ) : notifications.length === 0 ? (
           <div style={{ textAlign: 'center', padding: '40px 0' }}>
             <div style={{ fontSize: 36, marginBottom: 8 }}>🔔</div>
-            <p style={{ fontSize: 14, fontWeight: 700, color: '#1C1C1E' }}>Sin notificaciones</p>
-            <p style={{ fontSize: 12, color: '#8E8E93', marginTop: 2 }}>Aquí aparecerán cuando alguien empiece a seguirte.</p>
+            <p style={{ fontSize: 14, fontWeight: 700, color: '#1C1C1E' }}>{t.emptyTitle}</p>
+            <p style={{ fontSize: 12, color: '#8E8E93', marginTop: 2 }}>{t.emptySubtitle}</p>
           </div>
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 12, paddingBottom: 40 }}>
@@ -141,7 +146,7 @@ export default function NotificationsModal({ onClose }: Props) {
                 />
                 <div style={{ flex: 1 }}>
                   <p style={{ fontSize: 14, color: '#1C1C1E', margin: 0, fontWeight: 500 }}>
-                    <strong style={{ fontWeight: 700 }}>{notif.sender?.name}</strong> empezó a seguirte.
+                    <strong style={{ fontWeight: 700 }}>{notif.sender?.name}</strong> {t.startedFollowing}
                   </p>
                   <span style={{ fontSize: 11, color: '#8E8E93' }}>
                     {new Date(notif.created_at).toLocaleDateString()}

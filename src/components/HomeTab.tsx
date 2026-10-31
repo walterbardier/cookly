@@ -34,13 +34,15 @@ export default function HomeTab() {
 
   // Cargar contador de notificaciones no leídas
   useEffect(() => {
+    // Si user es null, salimos para evitar el error de TypeScript
     if (!user) return;
 
     async function fetchUnreadCount() {
+      // Usamos user.id de forma segura ya validada arriba
       const { count } = await supabase
         .from('notifications')
         .select('*', { count: 'exact', head: true })
-        .eq('recipient_id', user.id)
+        .eq('recipient_id', user!.id)
         .eq('read', false);
 
       setUnreadCount(count || 0);

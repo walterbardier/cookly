@@ -66,6 +66,8 @@ export const translations = {
       logout: "Cerrar sesión",
 
       profileSaved: "Perfil actualizado correctamente",
+
+      publicRecipes: "Recetas públicas",
     },
     addRecipe: {
       title: "Nueva receta",
@@ -121,6 +123,14 @@ export const translations = {
         editRecipe: "Editar receta",
         recipeUpdated: "Receta actualizada correctamente",
         saveChanges: "Guardar cambios"
+    },
+
+    notifications: {
+      title: "Notificaciones",
+      emptyTitle: "Sin notificaciones",
+      emptySubtitle: "Aquí aparecerán cuando alguien empiece a seguirte.",
+      startedFollowing: "empezó a seguirte.",
+      loading: "Cargando...",
     },
   },
   en: {
@@ -190,6 +200,8 @@ export const translations = {
       logout: "Log out",
 
       profileSaved: "Profile updated successfully",
+
+      publicRecipes: "Public recipes",
     },
     addRecipe: {
       title: "New recipe",
@@ -245,6 +257,14 @@ export const translations = {
       editRecipe: "Edit recipe",
       recipeUpdated: "Recipe updated successfully",
       saveChanges: "Save changes"
+    },
+
+    notifications: {
+      title: "Notifications",
+      emptyTitle: "No notifications",
+      emptySubtitle: "They will appear here when someone starts following you.",
+      startedFollowing: "started following you.",
+      loading: "Loading...",
     },
   }
 };

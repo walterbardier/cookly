@@ -7,6 +7,7 @@ import type { Recipe } from '../data/mockData';
 import RecipeModal from './RecipeModal';
 import { useLanguage } from '../context/LanguageContext';
 import { useLikes } from '../context/LikesContext';
+import { translations } from '../utils/translations';
 
 type Props = {
   userId: string;
@@ -16,6 +17,7 @@ type Props = {
 export default function UserProfile({ userId, onClose }: Props) {
   const { user: currentUser } = useAuth();
   const { language } = useLanguage();
+  const t = translations[language];
 
   const [profile, setProfile] = useState<any>(null);
   const [recipes, setRecipes] = useState<Recipe[]>([]);
@@ -327,7 +329,7 @@ export default function UserProfile({ userId, onClose }: Props) {
                     marginBottom: 16,
                   }}
                 >
-                  {isFollowing ? 'Siguiendo' : 'Seguir'}
+                  {isFollowing ? t.friends.following : t.friends.follow}
                 </button>
               )}
 
@@ -340,9 +342,9 @@ export default function UserProfile({ userId, onClose }: Props) {
                 }}
               >
                 {[
-                  { value: recipes.length, label: 'Recetas' },
-                  { value: followersCount, label: 'Seguidores' },
-                  { value: followingCount, label: 'Siguiendo' },
+                  { value: recipes.length, label: t.profile.recipesCount },
+                  { value: followersCount, label: t.profile.followers },
+                  { value: followingCount, label: t.profile.following },
                 ].map((stat) => (
                   <div
                     key={stat.label}
@@ -386,7 +388,7 @@ export default function UserProfile({ userId, onClose }: Props) {
                   marginBottom: 12,
                 }}
               >
-                Intereses
+                {t.profile.interests}
               </p>
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
                 {profile.interests.map((catId: string) => {
@@ -419,7 +421,7 @@ export default function UserProfile({ userId, onClose }: Props) {
           {/* Recetas Públicas Grid */}
           <div style={{ marginBottom: 20 }}>
             <h3 style={{ fontSize: 18, fontWeight: 800, color: '#1C1C1E', marginBottom: 12, paddingLeft: 4 }}>
-              Recetas públicas
+              {t.profile.publicRecipes}
             </h3>
 
             {recipes.length === 0 ? (
