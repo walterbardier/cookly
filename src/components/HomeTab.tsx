@@ -76,15 +76,21 @@ export default function HomeTab() {
         justifyContent: 'space-between',
         alignItems: 'center',
       }}>
-        {/* Logo */}
+       {/* Logo */}
         <div style={{ display: 'flex', alignItems: 'center' }}>
           <img 
             src="/cookly-txt-beta-logo.png" 
             alt="Cookly" 
-            style={{ height: 38, objectFit: 'contain' }} 
+            style={{ 
+              height: 38, 
+              objectFit: 'contain', 
+              pointerEvents: 'none' // Evita clics y arrastres directos sobre la imagen
+            }} 
+            onContextMenu={(e) => e.preventDefault()} // Bloquea el menú contextual (clic derecho / mantener presionado)
+            draggable={false} // Evita que la imagen pueda ser arrastrada
           />
         </div>
-
+        
         {/* Botón de notificaciones a la derecha */}
         <button
           onClick={() => setShowNotifications(true)}

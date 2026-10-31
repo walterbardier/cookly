@@ -39,3 +39,12 @@ html, body, #root {
 input, textarea, select {
   font-family: inherit;
 }
+
+/* Evita que se puedan arrastrar o seleccionar imágenes en toda la app */
+img {
+  -webkit-user-drag: none;
+  user-drag: none;
+  user-select: none;
+  -webkit-user-select: none;
+  pointer-events: none; /* Opcional: si quieres que ninguna imagen bloquee clics por debajo */
+}
