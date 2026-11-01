@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import RecipeCard from './RecipeCard';
 import RecipeModal from './RecipeModal';
 import NotificationsModal from './NotificationsModal';
@@ -23,22 +24,22 @@ export default function HomeTab() {
   const [showNotifications, setShowNotifications] = useState(false);
 
   const { initializeLikes } = useLikes();
-  const { recipes } = useRecipes();
+  const { recipes, loading } = useRecipes();
 
   // Filtrar exclusivamente las recetas públicas para todo el Home
   const publicRecipes = recipes.filter(recipe => recipe.is_public !== false);
 
   useEffect(() => {
+    if (publicRecipes.length > 0) {
       initializeLikes(publicRecipes);
+    }
   }, [publicRecipes]);
 
   // Cargar contador de notificaciones no leídas
   useEffect(() => {
-    // Si user es null, salimos para evitar el error de TypeScript
     if (!user) return;
 
     async function fetchUnreadCount() {
-      // Usamos user.id de forma segura ya validada arriba
       const { count } = await supabase
         .from('notifications')
         .select('*', { count: 'exact', head: true })
@@ -57,14 +58,46 @@ export default function HomeTab() {
     ? publicRecipes.filter(r => r.category === activeCategory)
     : publicRecipes;
 
+  // Pantalla de carga con varita mágica naranja girando
+  if (loading) {
+    return (
+      <div style={{ 
+        minHeight: '100vh', 
+        display: 'flex', 
+        flexDirection: 'column',
+        justifyContent: 'center', 
+        alignItems: 'center', 
+        background: '#F2F2F7',
+        gap: 16
+      }}>
+        <motion.div
+          animate={{ rotate: 360 }}
+          transition={{ repeat: Infinity, duration: 1.2, ease: "linear" }}
+          style={{ 
+            fontSize: 42, 
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            filter: 'drop-shadow(0 6px 16px rgba(255,107,53,0.4))'
+          }}
+        >
+          🪄
+        </motion.div>
+        <span style={{ fontSize: 13, fontWeight: 600, color: '#8E8E93', letterSpacing: '-0.2px' }}>
+          Cargando recetas...
+        </span>
+      </div>
+    );
+  }
+
   return (
     <div style={{ background: '#F2F2F7', minHeight: '100vh', paddingBottom: 100 }}>
       
-      {/* 1. Header Fijo (Sticky) con Logo y Notificaciones */}
+      {/* 1. Header Fijo (Sticky) con Blur y Estilo iOS */}
       <div style={{
-        background: 'rgba(242,242,247,0.75)',
-        backdropFilter: 'blur(20px)',
-        WebkitBackdropFilter: 'blur(20px)',
+        background: 'rgba(242, 242, 247, 0.8)',
+        backdropFilter: 'blur(20px) saturate(180%)',
+        WebkitBackdropFilter: 'blur(20px) saturate(180%)',
         position: 'sticky',
         top: 0,
         zIndex: 30,
@@ -75,8 +108,9 @@ export default function HomeTab() {
         display: 'flex',
         justifyContent: 'space-between',
         alignItems: 'center',
+        borderBottom: '0.5px solid rgba(0, 0, 0, 0.04)',
       }}>
-       {/* Logo */}
+        {/* Logo */}
         <div style={{ display: 'flex', alignItems: 'center' }}>
           <img 
             src="/cookly-txt-beta-logo.png" 
@@ -84,15 +118,16 @@ export default function HomeTab() {
             style={{ 
               height: 38, 
               objectFit: 'contain', 
-              pointerEvents: 'none' // Evita clics y arrastres directos sobre la imagen
+              pointerEvents: 'none' 
             }} 
-            onContextMenu={(e) => e.preventDefault()} // Bloquea el menú contextual (clic derecho / mantener presionado)
-            draggable={false} // Evita que la imagen pueda ser arrastrada
+            onContextMenu={(e) => e.preventDefault()} 
+            draggable={false} 
           />
         </div>
         
-        {/* Botón de notificaciones a la derecha */}
-        <button
+        {/* Botón de notificaciones */}
+        <motion.button
+          whileTap={{ scale: 0.95 }}
           onClick={() => setShowNotifications(true)}
           style={{
             width: 40,
@@ -134,21 +169,31 @@ export default function HomeTab() {
               {unreadCount}
             </span>
           )}
-        </button>
+        </motion.button>
       </div>
  
-      {/* 2. Título Principal */}
-      <div style={{ padding: '0 20px', marginTop: 12, marginBottom: 20 }}>
+      {/* 2. Título Principal con Fade Rápido */}
+      <motion.div 
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ duration: 0.2, ease: 'easeOut' }}
+        style={{ padding: '0 20px', marginTop: 12, marginBottom: 20 }}
+      >
         <p style={{ fontSize: 13, color: '#AEAEB2', fontWeight: 600, marginBottom: 4 }}>
           {t.greeting}
         </p>
         <h1 style={{ fontSize: 32, fontWeight: 800, color: '#1C1C1E', lineHeight: 1.15, letterSpacing: '-0.5px' }}>
           {t.title}
         </h1>
-      </div>
+      </motion.div>
  
-      {/* 3. Contenido de las Secciones (Populares, Categorías, Sugeridos) */}
-      <div style={{ padding: '0 0' }}>
+      {/* 3. Contenido de las Secciones con Fade Rápido y Limpio */}
+      <motion.div 
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ duration: 0.25, ease: 'easeOut', delay: 0.05 }}
+        style={{ padding: '0 0' }}
+      >
         <div style={{ padding: '0 0 0 0' }}>
           {/* Popular section */}
           <section style={{ marginBottom: 28, marginTop: 10 }}>
@@ -190,7 +235,7 @@ export default function HomeTab() {
                   boxShadow: activeCategory === null ? '0 4px 12px rgba(255,107,53,0.35)' : '0 1px 4px rgba(0,0,0,0.06)',
                   border: 'none',
                   cursor: 'pointer',
-                  transition: 'all 0.2s ease',
+                  transition: 'background 0.15s ease, color 0.15s ease',
                   whiteSpace: 'nowrap',
                 }}
               >
@@ -213,7 +258,7 @@ export default function HomeTab() {
                     boxShadow: activeCategory === cat.id ? `0 4px 12px ${cat.color}55` : '0 1px 4px rgba(0,0,0,0.06)',
                     border: 'none',
                     cursor: 'pointer',
-                    transition: 'all 0.2s ease',
+                    transition: 'background 0.15s ease, color 0.15s ease',
                     whiteSpace: 'nowrap',
                   }}
                 >
@@ -233,12 +278,14 @@ export default function HomeTab() {
             </div>
           </section>
         </div>
+      </motion.div>
 
+      {/* Modales con soporte de AnimatePresence y transiciones limpias */}
+      <AnimatePresence>
         {openRecipe && (
           <RecipeModal recipe={openRecipe} onClose={() => setOpenRecipe(null)} />
         )}
 
-        {/* Modal de Notificaciones */}
         {showNotifications && (
           <NotificationsModal
             onClose={() => {
@@ -247,7 +294,7 @@ export default function HomeTab() {
             }}
           />
         )}
-      </div>
+      </AnimatePresence>
     </div>
   );
 }
