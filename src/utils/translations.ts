@@ -7,17 +7,20 @@ export const translations = {
     
       loginButton: "Iniciar sesión",
       createAccountButton: "Crear cuenta",
-    
-      dontHaveAccount: "¿No tienes una cuenta?",
-      alreadyHaveAccount: "¿Ya tienes una cuenta?",
-    
+
       emailNotConfirmed: "Necesitas confirmar tu correo para ingresar.",
       invalidCredentials: "Correo o contraseña incorrectos.",
       emailAlreadyExists: "Ese correo ya tiene una cuenta asociada.",
       genericError: "Ha ocurrido un error.",
     
       loginSuccess: "Sesión iniciada.",
-      registerSuccess: "Revisa tu correo para confirmar tu cuenta."
+      registerSuccess: "Revisa tu correo para confirmar tu cuenta.",
+
+      dontHaveAccount: "¿No tienes una cuenta? Regístrate",
+      alreadyHaveAccount: "¿Ya tienes una cuenta? Inicia sesión",
+      forgotPassword: "¿Olvidaste tu contraseña, JULIANA?",
+      forgotPasswordError: "Por favor ingresa tu correo electrónico primero",
+      forgotPasswordSuccess: "¡Correo de recuperación enviado! Revisa tu bandeja de entrada."
     },
     home: {
       greeting: "Buenos días 👋",
@@ -142,16 +145,19 @@ export const translations = {
       loginButton: "Log In",
       createAccountButton: "Create account",
     
-      dontHaveAccount: "Don't have an account?",
-      alreadyHaveAccount: "Already have an account?",
-    
       emailNotConfirmed: "You need to confirm your email before signing in.",
       invalidCredentials: "Invalid email or password.",
       emailAlreadyExists: "This email is already associated with an account.",
       genericError: "Something went wrong.",
     
       loginSuccess: "Signed in successfully.",
-      registerSuccess: "Check your email to confirm your account."
+      registerSuccess: "Check your email to confirm your account.",
+
+      dontHaveAccount: "Don't have an account? Sign up",
+      alreadyHaveAccount: "Already have an account? Sign in",
+      forgotPassword: "Forgot your password?",
+      forgotPasswordError: "Please enter your email first",
+      forgotPasswordSuccess: "Recovery email sent! Check your inbox."
     },
     home: {
       greeting: "Good morning 👋",

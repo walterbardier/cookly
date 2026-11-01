@@ -4,6 +4,7 @@ import { AnimatePresence, motion } from "framer-motion";
 import { useAuth } from "../context/AuthContext";
 import { useLanguage } from "../context/LanguageContext";
 import { translations } from "../utils/translations";
+import { supabase } from "../lib/supabase"; // Asegúrate de importar tu instancia de Supabase
 
 export default function LoginPage() {
   const { language } = useLanguage();
@@ -40,28 +41,39 @@ export default function LoginPage() {
     }
 
     setLoading(true);
-    console.log("CLICK SUBMIT - Modo:", isLogin ? "Login" : "Registro");
 
     try {
       if (isLogin) {
-        // Iniciar sesión
         const result = await signIn(email, password);
-        console.log("LOGIN OK", result);
         showToast("¡Bienvenido de nuevo!", "success");
       } else {
-        // Registrarse
         const result = await signUp(email, password);
-        console.log("SIGNUP OK", result);
         showToast("¡Cuenta creada con éxito! Revisa tu email si requiere confirmación.", "success");
       }
     } catch (error: any) {
-      console.log("ENTRO AL CATCH");
-      console.log("ERROR:", error);
-      console.log("MESSAGE:", error.message);
-  
       showToast(error.message || "Ocurrió un error", "error");
     } finally {
       setLoading(false);
+    }
+  };
+
+  // Función para solicitar el restablecimiento de contraseña
+  const handleForgotPassword = async () => {
+    if (!email) {
+      showToast(t.forgotPasswordError, "error");
+      return;
+    }
+
+    try {
+      const { error } = await supabase.auth.resetPasswordForEmail(email, {
+        redirectTo: `${window.location.origin}/update-password`,
+      });
+
+      if (error) throw error;
+
+      showToast(t.forgotPasswordSuccess, "success");
+    } catch (error: any) {
+      showToast(error.message || "Ocurrió un error", "error");
     }
   };
 
@@ -85,7 +97,6 @@ export default function LoginPage() {
                     : "bg-red-500"
                 }`}
               />
-
               <span className="font-semibold text-zinc-900">
                 {toast.text}
               </span>
@@ -146,13 +157,34 @@ export default function LoginPage() {
             style={{
               width: "100%",
               padding: 14,
-              marginBottom: 24,
+              marginBottom: isLogin ? 8 : 24,
               borderRadius: 14,
               border: "1px solid #ddd",
             }}
           />
 
-          {/* Botón principal con cambio visual de carga */}
+          {/* Enlace de Olvidé mi contraseña (solo aparece en modo Login) */}
+          {isLogin && (
+            <button
+              type="button"
+              onClick={handleForgotPassword}
+              style={{
+                marginBottom: 16,
+                width: "100%",
+                background: "transparent",
+                border: "none",
+                color: "#FF6B35",
+                fontWeight: 600,
+                cursor: "pointer",
+                fontSize: 14,
+                textAlign: "right",
+              }}
+            >
+              {t.forgotPassword}
+            </button>
+          )}
+
+          {/* Botón principal */}
           <button
             type="button"
             disabled={loading}
