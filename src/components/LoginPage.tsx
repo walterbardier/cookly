@@ -13,7 +13,7 @@ export default function LoginPage() {
   const { signIn, signUp } = useAuth();
 
   const [isLogin, setIsLogin] = useState(true);
-  const [isRecoveryMode, setIsRecoveryMode] = useState(false); // Estado para detectar cambio de contraseña
+  const [isRecoveryMode, setIsRecoveryMode] = useState(false); // Detecta si viene del correo de recuperación
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -25,22 +25,18 @@ export default function LoginPage() {
     type: "success" | "error";
   } | null>(null);
 
-  const showToast = (
-    text: string,
-    type: "success" | "error" = "error"
-  ) => {
+  const showToast = (text: string, type: "success" | "error" = "error") => {
     setToast({ text, type });
-  
     window.setTimeout(() => {
       setToast(null);
     }, 3000);
   };
 
-  // Escuchar cuando el usuario hace clic en el enlace del correo de recuperación
+  // Escuchar cuando el usuario hace clic en el enlace del correo de recuperación de Supabase
   useEffect(() => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event) => {
       if (event === "PASSWORD_RECOVERY") {
-        setIsRecoveryMode(true); // Activa la vista de nueva contraseña automáticamente
+        setIsRecoveryMode(true); // Activa la pantalla de nueva contraseña automáticamente
       }
     });
 
@@ -56,7 +52,6 @@ export default function LoginPage() {
     }
 
     setLoading(true);
-
     try {
       if (isLogin) {
         await signIn(email, password);
@@ -75,18 +70,18 @@ export default function LoginPage() {
   // Enviar correo de recuperación
   const handleForgotPassword = async () => {
     if (!email) {
-      showToast(t.forgotPasswordError || "Por favor ingresa tu correo electrónico primero", "error");
+      showToast("Por favor ingresa tu correo electrónico primero", "error");
       return;
     }
 
     try {
       const { error } = await supabase.auth.resetPasswordForEmail(email, {
-        redirectTo: window.location.origin, // Redirige a la misma página donde el listener detectará el evento
+        redirectTo: window.location.origin, // Redirige a la misma web donde el listener detectará el token
       });
 
       if (error) throw error;
 
-      showToast(t.forgotPasswordSuccess || "¡Correo de recuperación enviado! Revisa tu bandeja de entrada.", "success");
+      showToast("¡Correo de recuperación enviado! Revisa tu bandeja de entrada.", "success");
     } catch (error: any) {
       showToast(error.message || "Ocurrió un error", "error");
     }
@@ -132,14 +127,10 @@ export default function LoginPage() {
             <div className="flex items-center gap-3 rounded-2xl border border-white/30 bg-white/80 px-5 py-3 shadow-2xl backdrop-blur-xl">
               <div
                 className={`h-2.5 w-2.5 rounded-full ${
-                  toast.type === "success"
-                    ? "bg-green-500"
-                    : "bg-red-500"
+                  toast.type === "success" ? "bg-green-500" : "bg-red-500"
                 }`}
               />
-              <span className="font-semibold text-zinc-900">
-                {toast.text}
-              </span>
+              <span className="font-semibold text-zinc-900">{toast.text}</span>
             </div>
           </motion.div>
         )}
@@ -166,7 +157,7 @@ export default function LoginPage() {
           }}
         >
           {isRecoveryMode ? (
-            /* VISTA DE NUEVA CONTRASEÑA */
+            /* ================= VISTA DE NUEVA CONTRASEÑA ================= */
             <>
               <h1
                 style={{
@@ -214,7 +205,7 @@ export default function LoginPage() {
               </button>
             </>
           ) : (
-            /* VISTA NORMAL DE LOGIN / REGISTRO */
+            /* ================= VISTA NORMAL DE LOGIN / REGISTRO ================= */
             <>
               <h1
                 style={{
@@ -300,6 +291,7 @@ export default function LoginPage() {
 
               {/* Botón para alternar entre Login y Registro */}
               <button
+                type="button"
                 onClick={() => setIsLogin(!isLogin)}
                 style={{
                   marginTop: 16,
@@ -311,9 +303,7 @@ export default function LoginPage() {
                   fontSize: 14,
                 }}
               >
-                {isLogin
-                  ? t.dontHaveAccount
-                  : t.alreadyHaveAccount}
+                {isLogin ? t.dontHaveAccount : t.alreadyHaveAccount}
               </button>
             </>
           )}
