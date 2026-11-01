@@ -18,7 +18,7 @@ export const translations = {
 
       dontHaveAccount: "¿No tienes una cuenta? Regístrate",
       alreadyHaveAccount: "¿Ya tienes una cuenta? Inicia sesión",
-      forgotPassword: "¿Olvidaste tu contraseña, JULIANA?",
+      forgotPassword: "¿Olvidaste tu contraseña?",
       forgotPasswordError: "Por favor ingresa tu correo electrónico primero",
       forgotPasswordSuccess: "¡Correo de recuperación enviado! Revisa tu bandeja de entrada."
     },
