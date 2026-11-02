@@ -11,10 +11,13 @@ type Comment = {
   content: string;
   created_at: string;
   user?: {
+    id: string;
     name: string;
     username: string;
     avatar: string;
   };
+  likes_count?: number;
+  liked_by_me?: boolean;
 };
 
 export default function CommentsModal({ recipe, onClose }: { recipe: any; onClose: () => void }) {
@@ -25,24 +28,63 @@ export default function CommentsModal({ recipe, onClose }: { recipe: any; onClos
   const [comments, setComments] = useState<Comment[]>([]);
   const [newComment, setNewComment] = useState("");
   const [loading, setLoading] = useState(false);
+  const [activeMenuId, setActiveMenuId] = useState<string | null>(null);
 
   useEffect(() => {
     loadComments();
-  }, [recipe.id]);
+  }, [recipe.id, user?.id]);
 
   async function loadComments() {
-    const { data, error } = await supabase
+    if (!user?.id) return;
+
+    // 1. Cargar comentarios especificando el foreign key correcto para evitar ambigüedades
+    const { data: commentsData, error } = await supabase
       .from("comments")
       .select(`
         *,
-        user:profiles(id, name, username, avatar)
+        user:profiles!comments_user_id_fkey(id, name, username, avatar)
       `)
       .eq("recipe_id", recipe.id)
       .order("created_at", { ascending: true });
 
-    if (!error && data) {
-      setComments(data);
+    if (error) {
+      console.error("Error cargando comentarios:", error);
+      return;
     }
+
+    if (!commentsData) return;
+
+    // 2. Cargar los likes de estos comentarios hechos por el usuario actual
+    const commentIds = commentsData.map(c => c.id);
+    let userLikes: string[] = [];
+
+    if (commentIds.length > 0) {
+      const { data: likesData } = await supabase
+        .from("comment_likes")
+        .select("comment_id")
+        .eq("user_id", user.id)
+        .in("comment_id", commentIds);
+
+      userLikes = likesData?.map(l => l.comment_id) || [];
+    }
+
+    // 3. Obtener conteos de likes totales por comentario
+    const formattedComments = await Promise.all(
+      commentsData.map(async (comment) => {
+        const { count } = await supabase
+          .from("comment_likes")
+          .select("*", { count: "exact", head: true })
+          .eq("comment_id", comment.id);
+
+        return {
+          ...comment,
+          likes_count: count || 0,
+          liked_by_me: userLikes.includes(comment.id),
+        };
+      })
+    );
+
+    setComments(formattedComments);
   }
 
   async function handleAddComment(e: React.FormEvent) {
@@ -56,18 +98,47 @@ export default function CommentsModal({ recipe, onClose }: { recipe: any; onClos
       content: newComment.trim(),
     });
 
-    if (!error) {
+    if (error) {
+      console.error("Error al publicar comentario:", error);
+      alert("Error al publicar: " + error.message);
+    } else {
       setNewComment("");
       loadComments();
     }
     setLoading(false);
   }
 
+  async function toggleCommentLike(commentId: string, likedByMe: boolean) {
+    if (!user) return;
+
+    if (likedByMe) {
+      await supabase
+        .from("comment_likes")
+        .delete()
+        .eq("comment_id", commentId)
+        .eq("user_id", user.id);
+    } else {
+      await supabase
+        .from("comment_likes")
+        .insert({ comment_id: commentId, user_id: user.id });
+    }
+
+    loadComments();
+  }
+
+  async function handleDeleteComment(commentId: string) {
+    const { error } = await supabase.from("comments").delete().eq("id", commentId);
+    if (!error) {
+      setComments(prev => prev.filter(c => c.id !== commentId));
+    }
+    setActiveMenuId(null);
+  }
+
   return (
     <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/50 backdrop-blur-sm p-0 sm:p-4">
       <div className="bg-white w-full max-w-lg h-[90vh] sm:h-[85vh] rounded-t-[32px] sm:rounded-3xl flex flex-col overflow-hidden shadow-2xl">
         
-        {/* PARTE SUPERIOR: PREvisualización DEL POST (Media pantalla aprox) */}
+        {/* PARTE SUPERIOR: PREVISUALIZACIÓN DEL POST */}
         <div className="relative h-[45%] bg-zinc-900 shrink-0 flex flex-col justify-between overflow-hidden">
           <img 
             src={recipe.image} 
@@ -76,7 +147,6 @@ export default function CommentsModal({ recipe, onClose }: { recipe: any; onClos
           />
           <div className="absolute inset-0 bg-gradient-to-t from-zinc-950/90 via-zinc-950/40 to-transparent" />
 
-          {/* Botón Cerrar */}
           <div className="relative z-10 flex justify-between items-center p-4">
             <h3 className="text-white font-extrabold text-base drop-shadow-md">Comentarios</h3>
             <button 
@@ -87,7 +157,6 @@ export default function CommentsModal({ recipe, onClose }: { recipe: any; onClos
             </button>
           </div>
 
-          {/* Información del Post (Autor y Título) */}
           <div className="relative z-10 p-5 flex flex-col gap-2">
             <div className="flex items-center gap-3">
               {recipe.author?.avatar ? (
@@ -116,7 +185,7 @@ export default function CommentsModal({ recipe, onClose }: { recipe: any; onClos
             </div>
           ) : (
             comments.map((comment) => (
-              <div key={comment.id} className="bg-white p-3.5 rounded-2xl shadow-xs flex gap-3">
+              <div key={comment.id} className="bg-white p-3.5 rounded-2xl shadow-xs flex gap-3 relative">
                 {comment.user?.avatar ? (
                   <img src={comment.user.avatar} alt={comment.user?.name} className="w-9 h-9 rounded-full object-cover shrink-0" />
                 ) : (
@@ -124,7 +193,7 @@ export default function CommentsModal({ recipe, onClose }: { recipe: any; onClos
                     {comment.user?.name?.[0] || "?"}
                   </div>
                 )}
-                <div className="flex-1">
+                <div className="flex-1 pr-6">
                   <div className="flex items-center justify-between">
                     <span className="font-bold text-xs text-zinc-900">{comment.user?.name}</span>
                     <span className="text-[10px] text-zinc-400">
@@ -132,7 +201,60 @@ export default function CommentsModal({ recipe, onClose }: { recipe: any; onClos
                     </span>
                   </div>
                   <p className="text-xs text-zinc-500 mb-1">@{comment.user?.username}</p>
-                  <p className="text-sm text-zinc-800 leading-relaxed">{comment.content}</p>
+                  <p className="text-sm text-zinc-800 leading-relaxed mb-4">{comment.content}</p>
+
+                  {/* Iconos abajo a la derecha: Like (Corazón) y Menú de opciones (3 puntitos) */}
+                  <div className="absolute bottom-3 right-4 flex items-center gap-3">
+                    {/* Botón Like con Corazón */}
+                    <button
+                      onClick={() => toggleCommentLike(comment.id, !!comment.liked_by_me)}
+                      className="flex items-center gap-1 bg-none border-none cursor-pointer group"
+                    >
+                      <svg
+                        width="15"
+                        height="15"
+                        viewBox="0 0 24 24"
+                        fill={comment.liked_by_me ? "#FF2D55" : "none"}
+                        stroke={comment.liked_by_me ? "#FF2D55" : "#AEAEB2"}
+                        strokeWidth="2"
+                        className="transition-transform active:scale-125"
+                      >
+                        <path d="M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 000-7.78z"/>
+                      </svg>
+                      <span className={`text-xs font-semibold ${comment.liked_by_me ? "text-[#FF2D55]" : "text-[#AEAEB2]"}`}>
+                        {comment.likes_count || 0}
+                      </span>
+                    </button>
+
+                    {/* Botón 3 puntitos para menú */}
+                    <div className="relative">
+                      <button
+                        onClick={() => setActiveMenuId(activeMenuId === comment.id ? null : comment.id)}
+                        className="w-6 h-6 flex items-center justify-center text-zinc-400 hover:text-zinc-600 bg-none border-none cursor-pointer"
+                      >
+                        •••
+                      </button>
+
+                      {/* Menú flotante de opción borrar */}
+                      {activeMenuId === comment.id && (
+                        <div className="absolute right-0 bottom-7 bg-white shadow-lg rounded-xl border border-zinc-100 py-1 z-20 min-w-[100px]">
+                          {comment.user_id === user?.id ? (
+                            <button
+                              onClick={() => handleDeleteComment(comment.id)}
+                              className="w-full text-left px-3 py-1.5 text-xs font-bold text-red-500 hover:bg-red-50 transition bg-none border-none cursor-pointer"
+                            >
+                              Borrar
+                            </button>
+                          ) : (
+                            <div className="px-3 py-1.5 text-[10px] text-zinc-400 italic">
+                              Sin opciones
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
                 </div>
               </div>
             ))
