@@ -13,11 +13,11 @@ export default function LoginPage() {
   const { signIn, signUp } = useAuth();
 
   const [isLogin, setIsLogin] = useState(true);
-  const [isRecoveryMode, setIsRecoveryMode] = useState(false); // Detecta si viene del correo de recuperación
+  const [isRecoveryMode, setIsRecoveryMode] = useState(false);
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [newPassword, setNewPassword] = useState(""); // Campo para la nueva contraseña
+  const [newPassword, setNewPassword] = useState("");
   const [loading, setLoading] = useState(false);
 
   const [toast, setToast] = useState<{
@@ -32,11 +32,10 @@ export default function LoginPage() {
     }, 3000);
   };
 
-  // Escuchar cuando el usuario hace clic en el enlace del correo de recuperación de Supabase
   useEffect(() => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event) => {
       if (event === "PASSWORD_RECOVERY") {
-        setIsRecoveryMode(true); // Activa la pantalla de nueva contraseña automáticamente
+        setIsRecoveryMode(true);
       }
     });
 
@@ -45,7 +44,10 @@ export default function LoginPage() {
     };
   }, []);
 
-  const handleSubmit = async () => {
+  // Manejador del submit de Login/Registro
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault(); // Evita recargar la página con Enter
+
     if (!email || !password) {
       showToast("Por favor completa todos los campos", "error");
       return;
@@ -76,7 +78,7 @@ export default function LoginPage() {
 
     try {
       const { error } = await supabase.auth.resetPasswordForEmail(email, {
-        redirectTo: window.location.origin, // Redirige a la misma web de Vercel donde el listener detectará el token
+        redirectTo: window.location.origin,
       });
 
       if (error) throw error;
@@ -87,8 +89,10 @@ export default function LoginPage() {
     }
   };
 
-  // Guardar la nueva contraseña en Supabase
-  const handleUpdatePassword = async () => {
+  // Manejador del submit para la nueva contraseña
+  const handleUpdatePassword = async (e: React.FormEvent) => {
+    e.preventDefault(); // Evita recargar la página con Enter
+
     if (!newPassword) {
       showToast("Por favor ingresa tu nueva contraseña", "error");
       return;
@@ -106,7 +110,6 @@ export default function LoginPage() {
       setIsRecoveryMode(false);
       setNewPassword("");
       
-      // Forzamos recarga para limpiar los tokens de la URL y dejar que inicie sesión con normalidad
       window.location.href = window.location.origin;
     } catch (error: any) {
       showToast(error.message || "Ocurrió un error", "error");
@@ -160,8 +163,8 @@ export default function LoginPage() {
           }}
         >
           {isRecoveryMode ? (
-            /* ================= VISTA DE NUEVA CONTRASEÑA ================= */
-            <>
+            /* ================= FORMULARIO DE NUEVA CONTRASEÑA ================= */
+            <form onSubmit={handleUpdatePassword}>
               <h1
                 style={{
                   fontSize: 30,
@@ -186,13 +189,13 @@ export default function LoginPage() {
                   marginBottom: 20,
                   borderRadius: 14,
                   border: "1px solid #ddd",
+                  outline: "none"
                 }}
               />
 
               <button
-                type="button"
+                type="submit"
                 disabled={loading}
-                onClick={handleUpdatePassword}
                 style={{
                   width: "100%",
                   padding: 16,
@@ -200,16 +203,17 @@ export default function LoginPage() {
                   background: loading ? "#ccc" : "#FF6B35",
                   color: "white",
                   fontWeight: 700,
+                  border: "none",
                   cursor: loading ? "not-allowed" : "pointer",
                   transition: "background 0.2s",
                 }}
               >
                 {loading ? "Guardando..." : "Guardar contraseña"}
               </button>
-            </>
+            </form>
           ) : (
-            /* ================= VISTA NORMAL DE LOGIN / REGISTRO ================= */
-            <>
+            /* ================= FORMULARIO PRINCIPAL DE LOGIN / REGISTRO ================= */
+            <form onSubmit={handleSubmit}>
               <h1
                 style={{
                   fontSize: 34,
@@ -231,6 +235,7 @@ export default function LoginPage() {
                   marginBottom: 16,
                   borderRadius: 14,
                   border: "1px solid #ddd",
+                  outline: "none"
                 }}
               />
 
@@ -245,10 +250,11 @@ export default function LoginPage() {
                   marginBottom: isLogin ? 8 : 24,
                   borderRadius: 14,
                   border: "1px solid #ddd",
+                  outline: "none"
                 }}
               />
 
-              {/* Enlace de Olvidé mi contraseña (solo en modo Login) */}
+              {/* Enlace de Olvidé mi contraseña */}
               {isLogin && (
                 <button
                   type="button"
@@ -269,11 +275,10 @@ export default function LoginPage() {
                 </button>
               )}
 
-              {/* Botón principal */}
+              {/* Botón submit que responderá a la tecla Enter */}
               <button
-                type="button"
+                type="submit"
                 disabled={loading}
-                onClick={handleSubmit}
                 style={{
                   width: "100%",
                   padding: 16,
@@ -281,6 +286,7 @@ export default function LoginPage() {
                   background: loading ? "#ccc" : "#FF6B35",
                   color: "white",
                   fontWeight: 700,
+                  border: "none",
                   cursor: loading ? "not-allowed" : "pointer",
                   transition: "background 0.2s",
                 }}
@@ -292,7 +298,7 @@ export default function LoginPage() {
                   : t.createAccountButton}
               </button>
 
-              {/* Botón para alternar entre Login y Registro */}
+              {/* Botón alternar modo (debe ser type="button" para no disparar el form) */}
               <button
                 type="button"
                 onClick={() => setIsLogin(!isLogin)}
@@ -310,7 +316,7 @@ export default function LoginPage() {
                   ? t.dontHaveAccount
                   : t.alreadyHaveAccount}
               </button>
-            </>
+            </form>
           )}
         </div>
       </div>
