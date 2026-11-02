@@ -135,11 +135,11 @@ export default function CommentsModal({ recipe, onClose }: { recipe: any; onClos
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/50 backdrop-blur-sm p-0 sm:p-4">
+    <div className="fixed inset-0 z-[999] flex items-end sm:items-center justify-center bg-black/50 backdrop-blur-sm p-0 sm:p-4">
       <div className="bg-white w-full max-w-lg h-[90vh] sm:h-[85vh] rounded-t-[32px] sm:rounded-3xl flex flex-col overflow-hidden shadow-2xl">
         
-        {/* PARTE SUPERIOR: PREVISUALIZACIÓN DEL POST */}
-        <div className="relative h-[45%] bg-zinc-900 shrink-0 flex flex-col justify-between overflow-hidden">
+        {/* PARTE SUPERIOR: PREVISUALIZACIÓN DEL POST (Más chica y compacta) */}
+        <div className="relative h-[32%] bg-zinc-900 shrink-0 flex flex-col justify-between overflow-hidden">
           <img 
             src={recipe.image} 
             alt={recipe.title} 
@@ -147,31 +147,31 @@ export default function CommentsModal({ recipe, onClose }: { recipe: any; onClos
           />
           <div className="absolute inset-0 bg-gradient-to-t from-zinc-950/90 via-zinc-950/40 to-transparent" />
 
-          <div className="relative z-10 flex justify-between items-center p-4">
-            <h3 className="text-white font-extrabold text-base drop-shadow-md">Comentarios</h3>
+          <div className="relative z-10 flex justify-between items-center px-4 pt-3 pb-1">
+            <h3 className="text-white font-extrabold text-sm drop-shadow-md">Comentarios</h3>
             <button 
               onClick={onClose}
-              className="w-8 h-8 rounded-full bg-black/40 text-white flex items-center justify-center backdrop-blur-md hover:bg-black/60 transition"
+              className="w-7 h-7 rounded-full bg-black/40 text-white flex items-center justify-center backdrop-blur-md hover:bg-black/60 transition text-xs"
             >
               ✕
             </button>
           </div>
 
-          <div className="relative z-10 p-5 flex flex-col gap-2">
-            <div className="flex items-center gap-3">
+          <div className="relative z-10 px-4 pb-3 flex flex-col gap-1.5">
+            <div className="flex items-center gap-2.5">
               {recipe.author?.avatar ? (
-                <img src={recipe.author.avatar} alt={recipe.author?.name} className="w-10 h-10 rounded-full object-cover border border-white/20" />
+                <img src={recipe.author.avatar} alt={recipe.author?.name} className="w-8 h-8 rounded-full object-cover border border-white/20" />
               ) : (
-                <div className="w-10 h-10 rounded-full bg-zinc-700 flex items-center justify-center text-white font-bold">
+                <div className="w-8 h-8 rounded-full bg-zinc-700 flex items-center justify-center text-white font-bold text-xs">
                   {recipe.author?.name?.[0]}
                 </div>
               )}
               <div>
-                <p className="text-white font-bold text-sm drop-shadow">{recipe.author?.name}</p>
-                <p className="text-zinc-300 text-xs">@{recipe.author?.username}</p>
+                <p className="text-white font-bold text-xs drop-shadow">{recipe.author?.name}</p>
+                <p className="text-zinc-300 text-[10px]">@{recipe.author?.username}</p>
               </div>
             </div>
-            <h2 className="text-white font-extrabold text-lg leading-snug drop-shadow-md line-clamp-2">
+            <h2 className="text-white font-extrabold text-base leading-snug drop-shadow-md line-clamp-1">
               {recipe.title}
             </h2>
           </div>
