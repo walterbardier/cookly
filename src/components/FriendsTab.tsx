@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import RecipeModal from "./RecipeModal";
 import UserProfile from "./UserProfile";
 
@@ -18,10 +18,18 @@ export default function FriendsTab() {
 
   const { user } = useAuth();
   const [openRecipe, setOpenRecipe] = useState<Recipe | null>(null);
-  const [selectedUserId, setSelectedUserId] = useState<string | null>(null); // <-- Estado para el perfil seleccionado
+  const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
   const [users, setUsers] = useState<any[]>([]);
   const [recipes, setRecipes] = useState<any[]>([]);
   const [following, setFollowing] = useState<string[]>([]);
+
+  // Referencias y estados para el scroll horizontal y arrastre de la barra
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const trackRef = useRef<HTMLDivElement>(null);
+  const [thumbWidth, setThumbWidth] = useState(30);
+  const [thumbLeft, setThumbLeft] = useState(0);
+
+  const isThumbDragging = useRef(false);
 
   const {
     initializeLikes,
@@ -33,6 +41,57 @@ export default function FriendsTab() {
   useEffect(() => {
     loadFriends();
   }, [user]);
+
+  useEffect(() => {
+    return () => {
+      window.removeEventListener('mousemove', handleWindowMouseMove);
+      window.removeEventListener('mouseup', handleWindowMouseUp);
+    };
+  }, []);
+
+  // Actualizar la posición de la barra de desplazamiento horizontal
+  const handleScroll = () => {
+    if (scrollRef.current) {
+      const { scrollLeft, scrollWidth, clientWidth } = scrollRef.current;
+      const maxScroll = scrollWidth - clientWidth;
+      if (maxScroll > 0) {
+        const ratio = clientWidth / scrollWidth;
+        const width = Math.max(ratio * 100, 20);
+        setThumbWidth(width);
+        const progress = scrollLeft / maxScroll;
+        setThumbLeft(progress * (100 - width));
+      }
+    }
+  };
+
+  // Funciones para hacer "Click and Hold" y arrastrar la barra horizontal suavemente
+  const handleTrackMouseDown = (e: React.MouseEvent<HTMLDivElement>) => {
+    isThumbDragging.current = true;
+    updateScrollFromMouseX(e.clientX);
+
+    window.addEventListener('mousemove', handleWindowMouseMove);
+    window.addEventListener('mouseup', handleWindowMouseUp);
+  };
+
+  const handleWindowMouseMove = (e: MouseEvent) => {
+    if (!isThumbDragging.current) return;
+    updateScrollFromMouseX(e.clientX);
+  };
+
+  const handleWindowMouseUp = () => {
+    isThumbDragging.current = false;
+    window.removeEventListener('mousemove', handleWindowMouseMove);
+    window.removeEventListener('mouseup', handleWindowMouseUp);
+  };
+
+  const updateScrollFromMouseX = (clientX: number) => {
+    if (!trackRef.current || !scrollRef.current) return;
+    const rect = trackRef.current.getBoundingClientRect();
+    const clickX = clientX - rect.left;
+    const percentage = Math.max(0, Math.min(1, clickX / rect.width));
+    const maxScroll = scrollRef.current.scrollWidth - scrollRef.current.clientWidth;
+    scrollRef.current.scrollLeft = percentage * maxScroll;
+  };
 
   async function loadFriends() {
     if (!user) return;
@@ -48,7 +107,7 @@ export default function FriendsTab() {
       return;
     }
 
-    // 2. Cargar recetas públicas de otros usuarios con su información de perfil asociada
+    // 2. Cargar recetas públicas de otros usuarios
     const { data: recipeData, error: recipeError } = await supabase
       .from("recipes")
       .select(`
@@ -61,7 +120,7 @@ export default function FriendsTab() {
         )
       `)
       .neq("author_id", user.id)
-      .neq("is_public", false) // <-- Filtramos para traer solo recetas públicas
+      .neq("is_public", false)
       .order("created_at", { ascending: false });
 
     if (recipeError) {
@@ -170,8 +229,20 @@ export default function FriendsTab() {
             <div style={{ padding: '0 20px', marginBottom: 12 }}>
               <h2 style={{ fontSize: 18, fontWeight: 800, color: '#1C1C1E' }}>{t.suggestions}</h2>
             </div>
-            {/* Cards de usuarios (Hacemos clic en toda la tarjeta o imagen para abrir el perfil) */}
-            <div style={{ display: 'flex', gap: 12, overflowX: 'auto', paddingLeft: 20, paddingRight: 20 }}>
+            
+            {/* Contenedor sin cursor grab (scroll normal por trackpad/mouse wheel o tocando la barra) */}
+            <div 
+              ref={scrollRef}
+              onScroll={handleScroll}
+              style={{ 
+                display: 'flex', 
+                gap: 12, 
+                overflowX: 'auto', 
+                paddingLeft: 20, 
+                paddingRight: 20, 
+                scrollbarWidth: 'none',
+              }}
+            >
               {suggestions.map(u => (
                 <div 
                   key={u.id}
@@ -192,7 +263,7 @@ export default function FriendsTab() {
                   "
                 >
                   {u.avatar ? (
-                    <img src={u.avatar} alt={u.name} className="w-14 h-14 rounded-full object-cover mb-2"/>
+                    <img src={u.avatar} alt={u.name} className="w-14 h-14 rounded-full object-cover mb-2 pointer-events-none"/>
                   ) : (
                     <div className="w-14 h-14 rounded-full bg-[#E5E5EA] flex items-center justify-center mb-2">
                       <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#8E8E93" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -206,14 +277,13 @@ export default function FriendsTab() {
 
                   <p style={{ fontSize: 11, color: '#AEAEB2', fontWeight: 600, marginBottom: 4 }}>@{u.username}</p>
 
-                  {/* Cantidad real de recetas públicas */}
                   <p style={{ fontSize: 11, color: '#636366', marginBottom: 12 }}>
                     {u.recipesCount} {t.recipes}
                   </p>
                   
                   <button
                     onClick={(e) => {
-                      e.stopPropagation(); // Evita que se abra el perfil al hacer clic en el botón de seguir
+                      e.stopPropagation();
                       toggleFollow(u.id);
                     }}
                     className={`
@@ -246,6 +316,37 @@ export default function FriendsTab() {
                   </button>
                 </div>
               ))}
+            </div>
+
+            {/* Barra de desplazamiento horizontal con cursor de manito exclusivo */}
+            <div style={{ padding: '0 20px', marginTop: 12 }}>
+              <div 
+                ref={trackRef}
+                onMouseDown={handleTrackMouseDown}
+                style={{
+                  width: '100%',
+                  height: 6,
+                  background: '#E5E5EA',
+                  borderRadius: 3,
+                  overflow: 'hidden',
+                  position: 'relative',
+                  cursor: 'grab',
+                  userSelect: 'none',
+                }}
+                className="active:cursor-grabbing"
+              >
+                <div style={{
+                  width: `${thumbWidth}%`,
+                  height: '100%',
+                  background: '#FF6B35',
+                  borderRadius: 3,
+                  position: 'absolute',
+                  left: `${thumbLeft}%`,
+                  cursor: 'grab',
+                }}
+                className="active:cursor-grabbing"
+                />
+              </div>
             </div>
           </section>
         )}
@@ -291,7 +392,7 @@ export default function FriendsTab() {
                       overflow: 'hidden',
                       boxShadow: '0 2px 8px rgba(0,0,0,0.05)',
                     }}>
-                      {/* Post header (Al hacer clic en el autor se abre su perfil) */}
+                      {/* Post header */}
                       <div 
                         onClick={() => recipe.author?.id && setSelectedUserId(recipe.author.id)}
                         style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 16px 10px', cursor: 'pointer' }}
@@ -388,7 +489,7 @@ export default function FriendsTab() {
       
       {/* Modal / Vista de Perfil de Usuario */}
       {selectedUserId && (
-        <UserProfile userId={selectedUserId} onClose={() => setSelectedUserId(null)} />
+        <UserProfile userId={selectedUserId} onClose={() => { setSelectedUserId(null); loadFriends(); }} />
       )}
     </div>
   );
