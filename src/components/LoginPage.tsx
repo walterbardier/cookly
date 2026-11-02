@@ -76,7 +76,7 @@ export default function LoginPage() {
 
     try {
       const { error } = await supabase.auth.resetPasswordForEmail(email, {
-        redirectTo: window.location.origin, // Redirige a la misma web donde el listener detectará el token
+        redirectTo: window.location.origin, // Redirige a la misma web de Vercel donde el listener detectará el token
       });
 
       if (error) throw error;
@@ -105,6 +105,9 @@ export default function LoginPage() {
       showToast("¡Contraseña actualizada con éxito!", "success");
       setIsRecoveryMode(false);
       setNewPassword("");
+      
+      // Forzamos recarga para limpiar los tokens de la URL y dejar que inicie sesión con normalidad
+      window.location.href = window.location.origin;
     } catch (error: any) {
       showToast(error.message || "Ocurrió un error", "error");
     } finally {
@@ -303,7 +306,9 @@ export default function LoginPage() {
                   fontSize: 14,
                 }}
               >
-                {isLogin ? t.dontHaveAccount : t.alreadyHaveAccount}
+                {isLogin
+                  ? t.dontHaveAccount
+                  : t.alreadyHaveAccount}
               </button>
             </>
           )}

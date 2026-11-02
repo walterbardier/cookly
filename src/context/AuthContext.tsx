@@ -11,17 +11,8 @@ import { supabase } from "../lib/supabase";
 type AuthContextType = {
   user: User | null;
   loading: boolean;
-
-  signIn: (
-    email:string,
-    password:string
-   )=>Promise<any>;
-
-  signUp: (
-    email: string,
-    password: string
-  ) => Promise<void>;
-
+  signIn: (email: string, password: string) => Promise<any>;
+  signUp: (email: string, password: string) => Promise<void>;
   logout: () => Promise<void>;
 };
 
@@ -29,7 +20,6 @@ const AuthContext = createContext<AuthContextType | null>(null);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
-
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -39,7 +29,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       } = await supabase.auth.getSession();
 
       setUser(session?.user ?? null);
-
       setLoading(false);
     }
 
@@ -47,7 +36,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, session) => {
+    } = supabase.auth.onAuthStateChange((event, session) => {
+      // Si es un evento de recuperación de contraseña,
+      // evitamos que el contexto establezca la sesión de golpe y mande al usuario al Home.
+      if (event === "PASSWORD_RECOVERY") {
+        return;
+      }
+
       setUser(session?.user ?? null);
       setLoading(false);
     });
@@ -55,38 +50,28 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return () => subscription.unsubscribe();
   }, []);
 
-  async function signIn(
-    email:string,
-    password:string
-   ){
-   
-    const {data,error}=await supabase.auth.signInWithPassword({
+  async function signIn(email: string, password: string) {
+    const { data, error } = await supabase.auth.signInWithPassword({
       email,
-      password
+      password,
     });
-   
-    if(error) throw error;
-   
-    return data;
-   
-   }
 
-  async function signUp(
-    email: string,
-    password: string
-  ) {
+    if (error) throw error;
+    return data;
+  }
+
+  async function signUp(email: string, password: string) {
     const { data, error } = await supabase.auth.signUp({
       email,
       password,
     });
 
     if (error) throw error;
-
     if (!data.user) return;
 
     const { error: profileError } = await supabase
-    .from("profiles")
-    .insert({
+      .from("profiles")
+      .insert({
         id: data.user.id,
         name: email.split("@")[0],
         username: email.split("@")[0],
@@ -94,14 +79,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         bio: "",
         followers: 0,
         following: 0,
-    });
+      });
 
     if (profileError) throw profileError;
   }
 
   async function logout() {
     const { error } = await supabase.auth.signOut();
-
     if (error) throw error;
   }
 
