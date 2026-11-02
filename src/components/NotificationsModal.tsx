@@ -5,6 +5,7 @@ import { useAuth } from '../context/AuthContext';
 import { useLanguage } from '../context/LanguageContext';
 import { translations } from '../utils/translations';
 import UserProfile from './UserProfile';
+import CommentsModal from './CommentsModal'; // <-- Importamos el modal de comentarios
 
 type Props = {
   onClose: () => void;
@@ -18,6 +19,7 @@ export default function NotificationsModal({ onClose }: Props) {
   const [notifications, setNotifications] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
+  const [openCommentsRecipe, setOpenCommentsRecipe] = useState<any | null>(null); // <-- Estado para abrir comentarios
 
   useEffect(() => {
     if (!user) return;
@@ -34,6 +36,20 @@ export default function NotificationsModal({ onClose }: Props) {
               name,
               username,
               avatar
+            ),
+            recipe:recipes(
+              id,
+              title,
+              image,
+              category,
+              description,
+              author_id,
+              author:profiles!recipes_author_id_fkey(
+                id,
+                username,
+                name,
+                avatar
+              )
             )
           `)
           .eq('recipient_id', userId)
@@ -130,7 +146,15 @@ export default function NotificationsModal({ onClose }: Props) {
               return (
                 <div
                   key={notif.id}
-                  onClick={() => notif.sender?.id && setSelectedUserId(notif.sender.id)}
+                  onClick={() => {
+                    // Si es comentario y tenemos la receta, abrimos el modal de comentarios de la publicación
+                    if (isComment && notif.recipe) {
+                      setOpenCommentsRecipe(notif.recipe);
+                    } else if (notif.sender?.id) {
+                      // Si es follow, abrimos el perfil del usuario
+                      setSelectedUserId(notif.sender.id);
+                    }
+                  }}
                   style={{
                     display: 'flex',
                     alignItems: 'center',
@@ -142,7 +166,6 @@ export default function NotificationsModal({ onClose }: Props) {
                     transition: 'background 0.2s',
                   }}
                 >
-                  {/* Contenedor del Avatar con la burbuja #FF6B35 sin borde blanco */}
                   <div style={{ position: 'relative', width: 44, height: 44, flexShrink: 0 }}>
                     <img
                       src={notif.sender?.avatar || 'https://via.placeholder.com/150'}
@@ -191,8 +214,14 @@ export default function NotificationsModal({ onClose }: Props) {
           </div>
         )}
 
+        {/* Modal de perfil de usuario */}
         {selectedUserId && (
           <UserProfile userId={selectedUserId} onClose={() => setSelectedUserId(null)} />
+        )}
+
+        {/* Modal de comentarios de la publicación */}
+        {openCommentsRecipe && (
+          <CommentsModal recipe={openCommentsRecipe} onClose={() => setOpenCommentsRecipe(null)} />
         )}
       </motion.div>
     </motion.div>
