@@ -133,8 +133,10 @@ export const translations = {
       emptyTitle: "Sin notificaciones",
       emptySubtitle: "Aquí aparecerán cuando alguien empiece a seguirte.",
       startedFollowing: "empezó a seguirte.",
+      commentedOnRecipe: "comentó en tu receta 💬",
       loading: "Cargando...",
     },
+
   },
   en: {
     login: {
@@ -270,6 +272,7 @@ export const translations = {
       emptyTitle: "No notifications",
       emptySubtitle: "They will appear here when someone starts following you.",
       startedFollowing: "started following you.",
+      commentedOnRecipe: "commented on your recipe 💬",
       loading: "Loading...",
     },
   }

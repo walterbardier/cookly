@@ -1,6 +1,7 @@
 import { useEffect, useState, useRef } from 'react';
 import RecipeModal from "./RecipeModal";
 import UserProfile from "./UserProfile";
+import CommentsModal from "./CommentsModal"; // <-- Nuevo componente de comentarios
 
 import { CATEGORIES } from "../data/mockData";
 import type { Recipe } from '../data/mockData';
@@ -19,6 +20,8 @@ export default function FriendsTab() {
   const { user } = useAuth();
   const [openRecipe, setOpenRecipe] = useState<Recipe | null>(null);
   const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
+  const [openCommentsRecipe, setOpenCommentsRecipe] = useState<Recipe | null>(null); // <-- Estado para el modal de comentarios
+  
   const [users, setUsers] = useState<any[]>([]);
   const [recipes, setRecipes] = useState<any[]>([]);
   const [following, setFollowing] = useState<string[]>([]);
@@ -460,12 +463,18 @@ export default function FriendsTab() {
                             count={getLikes(recipe.id)}
                             onClick={() => toggleLike(recipe.id)}
                           />
-                          <div style={{ display: 'flex', alignItems: 'center', gap: 5, color: '#AEAEB2' }}>
+                          
+                          {/* Botón Comentar conectado al modal interactivo */}
+                          <div 
+                            onClick={() => setOpenCommentsRecipe(recipe)}
+                            style={{ display: 'flex', alignItems: 'center', gap: 5, color: '#AEAEB2', cursor: 'pointer' }}
+                          >
                             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
                               <path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/>
                             </svg>
                             <span style={{ fontSize: 13, fontWeight: 600 }}>{t.comment}</span>
                           </div>
+
                           <div style={{ display: 'flex', alignItems: 'center', gap: 5, color: '#AEAEB2' }}>
                             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
                               <circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/>
@@ -490,6 +499,11 @@ export default function FriendsTab() {
       {/* Modal / Vista de Perfil de Usuario */}
       {selectedUserId && (
         <UserProfile userId={selectedUserId} onClose={() => { setSelectedUserId(null); loadFriends(); }} />
+      )}
+
+      {/* Modal de Comentarios Interactivos */}
+      {openCommentsRecipe && (
+        <CommentsModal recipe={openCommentsRecipe} onClose={() => setOpenCommentsRecipe(null)} />
       )}
     </div>
   );
