@@ -4,7 +4,7 @@ export const translations = {
       title: "Cookly",
       email: "Correo electrónico",
       password: "Contraseña",
-    
+
       loginButton: "Iniciar sesión",
       createAccountButton: "Crear cuenta",
 
@@ -12,7 +12,7 @@ export const translations = {
       invalidCredentials: "Correo o contraseña incorrectos.",
       emailAlreadyExists: "Ese correo ya tiene una cuenta asociada.",
       genericError: "Ha ocurrido un error.",
-    
+
       loginSuccess: "Sesión iniciada.",
       registerSuccess: "Revisa tu correo para confirmar tu cuenta.",
 
@@ -20,7 +20,22 @@ export const translations = {
       alreadyHaveAccount: "¿Ya tienes una cuenta? Inicia sesión",
       forgotPassword: "¿Olvidaste tu contraseña?",
       forgotPasswordError: "Por favor ingresa tu correo electrónico primero",
-      forgotPasswordSuccess: "¡Correo de recuperación enviado! Revisa tu bandeja de entrada."
+      forgotPasswordSuccess: "¡Correo de recuperación enviado! Revisa tu bandeja de entrada.",
+
+      // Bienvenida y pantalla de recuperación
+      welcomeLoginTitle: "¡Qué bueno verte! 🍳",
+      welcomeLoginSubtitle: "Descubre recetas, guarda tus favoritas y cocina algo rico hoy.",
+      welcomeRegisterTitle: "¡Únete a Cookly! ✨",
+      welcomeRegisterSubtitle: "Crea tu cuenta y empieza a guardar y compartir tus recetas.",
+      newPasswordTitle: "Nueva contraseña 🔑",
+      newPasswordSubtitle: "Elige una nueva clave para volver a tu cocina.",
+      newPasswordPlaceholder: "Nueva contraseña",
+      newPasswordError: "Por favor ingresa tu nueva contraseña",
+      saveNewPasswordButton: "Guardar contraseña",
+      passwordUpdatedSuccess: "¡Contraseña actualizada con éxito!",
+      loadingText: "Procesando...",
+      savingText: "Guardando...",
+      missingFieldsError: "Por favor completa todos los campos",
     },
     home: {
       greeting: "Buenos días 👋",
@@ -143,15 +158,15 @@ export const translations = {
       title: "Cookly",
       email: "Email",
       password: "Password",
-    
+
       loginButton: "Log In",
       createAccountButton: "Create account",
-    
+
       emailNotConfirmed: "You need to confirm your email before signing in.",
       invalidCredentials: "Invalid email or password.",
       emailAlreadyExists: "This email is already associated with an account.",
       genericError: "Something went wrong.",
-    
+
       loginSuccess: "Signed in successfully.",
       registerSuccess: "Check your email to confirm your account.",
 
@@ -159,7 +174,22 @@ export const translations = {
       alreadyHaveAccount: "Already have an account? Sign in",
       forgotPassword: "Forgot your password?",
       forgotPasswordError: "Please enter your email first",
-      forgotPasswordSuccess: "Recovery email sent! Check your inbox."
+      forgotPasswordSuccess: "Recovery email sent! Check your inbox.",
+
+      // Welcome & recovery screen
+      welcomeLoginTitle: "Great to see you! 🍳",
+      welcomeLoginSubtitle: "Discover recipes, save your favorites, and cook something delicious today.",
+      welcomeRegisterTitle: "Join Cookly! ✨",
+      welcomeRegisterSubtitle: "Create your account and start saving and sharing your recipes.",
+      newPasswordTitle: "New password 🔑",
+      newPasswordSubtitle: "Choose a new password to get back to your kitchen.",
+      newPasswordPlaceholder: "New password",
+      newPasswordError: "Please enter your new password",
+      saveNewPasswordButton: "Save password",
+      passwordUpdatedSuccess: "Password updated successfully!",
+      loadingText: "Processing...",
+      savingText: "Saving...",
+      missingFieldsError: "Please fill in all fields",
     },
     home: {
       greeting: "Good morning 👋",

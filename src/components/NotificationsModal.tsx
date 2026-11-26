@@ -1,11 +1,13 @@
 import { useState, useEffect } from 'react';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../context/AuthContext';
 import { useLanguage } from '../context/LanguageContext';
 import { translations } from '../utils/translations';
 import UserProfile from './UserProfile';
-import CommentsModal from './CommentsModal'; // <-- Importamos el modal de comentarios
+import CommentsModal from './CommentsModal';
+
+const iosEase = [0.22, 1, 0.36, 1] as const;
 
 type Props = {
   onClose: () => void;
@@ -19,7 +21,7 @@ export default function NotificationsModal({ onClose }: Props) {
   const [notifications, setNotifications] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
-  const [openCommentsRecipe, setOpenCommentsRecipe] = useState<any | null>(null); // <-- Estado para abrir comentarios
+  const [openCommentsRecipe, setOpenCommentsRecipe] = useState<any | null>(null);
 
   useEffect(() => {
     if (!user) return;
@@ -64,7 +66,6 @@ export default function NotificationsModal({ onClose }: Props) {
           .update({ read: true })
           .eq('recipient_id', userId)
           .eq('read', false);
-
       } catch (err) {
         console.error('Error cargando notificaciones:', err);
       } finally {
@@ -80,149 +81,145 @@ export default function NotificationsModal({ onClose }: Props) {
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
-      style={{
-        position: 'fixed',
-        inset: 0,
-        zIndex: 100,
-        background: 'rgba(0,0,0,0.5)',
-        display: 'flex',
-        justifyContent: 'center',
-        alignItems: 'flex-end',
-      }}
+      transition={{ duration: 0.2, ease: iosEase }}
       onClick={onClose}
+      className="fixed inset-0 z-[100] flex select-none items-end justify-center bg-black/45 backdrop-blur-[4px]"
     >
       <motion.div
         onClick={(e) => e.stopPropagation()}
         initial={{ y: '100%' }}
         animate={{ y: 0 }}
         exit={{ y: '100%' }}
-        transition={{ type: 'spring', stiffness: 220, damping: 26 }}
-        style={{
-          width: '100%',
-          maxWidth: 480,
-          maxHeight: '85vh',
-          background: 'white',
-          borderRadius: '28px 28px 0 0',
-          overflowY: 'auto',
-          padding: 20,
-        }}
+        transition={{ type: 'spring', stiffness: 280, damping: 28 }}
+        className="max-h-[85vh] w-full max-w-[480px] select-none overflow-y-auto rounded-t-[28px] bg-white p-5 shadow-[0_-12px_40px_rgba(0,0,0,0.14)]"
       >
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
-          <h2 style={{ fontSize: 20, fontWeight: 800, color: '#1C1C1E', margin: 0 }}>
+        <div className="mb-5 flex items-center justify-between">
+          <h2 className="m-0 text-[20px] font-extrabold tracking-[-0.3px] text-[#1C1C1E]">
             {t.title}
           </h2>
-          <button
+          <motion.button
+            type="button"
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.9 }}
             onClick={onClose}
-            style={{
-              background: '#F2F2F7',
-              border: 'none',
-              borderRadius: '50%',
-              width: 32,
-              height: 32,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              cursor: 'pointer',
-              fontWeight: 700,
-            }}
+            className="flex h-8 w-8 cursor-pointer items-center justify-center rounded-full border-none bg-[#F2F2F7] text-xs font-bold text-[#636366] transition-colors duration-200 hover:bg-[#E5E5EA]"
           >
             ✕
-          </button>
+          </motion.button>
         </div>
 
         {loading ? (
-          <div style={{ textAlign: 'center', padding: '40px 0', color: '#8E8E93' }}>{t.loading}</div>
+          <div className="flex select-none items-center justify-center py-12">
+            <motion.div
+              animate={{ rotate: 360 }}
+              transition={{ repeat: Infinity, duration: 0.85, ease: 'linear' }}
+              className="h-9 w-9 rounded-full border-[3.5px] border-[#FF6B35]/20 border-t-[#FF6B35] border-r-[#FF9A5C] shadow-[0_4px_14px_rgba(255,107,53,0.25)]"
+            />
+          </div>
         ) : notifications.length === 0 ? (
-          <div style={{ textAlign: 'center', padding: '40px 0' }}>
-            <div style={{ fontSize: 36, marginBottom: 8 }}>🔔</div>
-            <p style={{ fontSize: 14, fontWeight: 700, color: '#1C1C1E' }}>{t.emptyTitle}</p>
-            <p style={{ fontSize: 12, color: '#8E8E93', marginTop: 2 }}>{t.emptySubtitle}</p>
+          <div className="py-10 text-center">
+            <div className="mb-2 text-[36px]">🔔</div>
+            <p className="m-0 text-sm font-bold text-[#1C1C1E]">
+              {t.emptyTitle}
+            </p>
+            <p className="mt-0.5 text-xs text-[#8E8E93]">{t.emptySubtitle}</p>
           </div>
         ) : (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 12, paddingBottom: 40 }}>
-            {notifications.map((notif) => {
+          <div className="flex flex-col gap-3 pb-10">
+            {notifications.map((notif, index) => {
               const isComment = notif.type === 'comment';
 
               return (
-                <div
+                <motion.div
                   key={notif.id}
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{
+                    duration: 0.25,
+                    ease: iosEase,
+                    delay: Math.min(index * 0.04, 0.2),
+                  }}
+                  whileHover={{ y: -1 }}
+                  whileTap={{ scale: 0.985 }}
                   onClick={() => {
-                    // Si es comentario y tenemos la receta, abrimos el modal de comentarios de la publicación
                     if (isComment && notif.recipe) {
                       setOpenCommentsRecipe(notif.recipe);
                     } else if (notif.sender?.id) {
-                      // Si es follow, abrimos el perfil del usuario
                       setSelectedUserId(notif.sender.id);
                     }
                   }}
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: 12,
-                    padding: 12,
-                    borderRadius: 16,
-                    background: notif.read ? '#F7F7FA' : '#FFF0EB',
-                    cursor: 'pointer',
-                    transition: 'background 0.2s',
-                  }}
+                  className={`flex cursor-pointer items-center gap-3 rounded-[16px] p-3 transition-colors duration-200 hover:brightness-[0.98] ${
+                    notif.read ? 'bg-[#F7F7FA]' : 'bg-[#FFF0EB]'
+                  }`}
                 >
-                  <div style={{ position: 'relative', width: 44, height: 44, flexShrink: 0 }}>
+                  <div className="relative h-11 w-11 shrink-0">
                     <img
-                      src={notif.sender?.avatar || 'https://via.placeholder.com/150'}
+                      src={
+                        notif.sender?.avatar ||
+                        'https://via.placeholder.com/150'
+                      }
                       alt={notif.sender?.name}
-                      style={{ width: '100%', height: '100%', borderRadius: '50%', objectFit: 'cover' }}
+                      draggable={false}
+                      onContextMenu={(e) => e.preventDefault()}
+                      className="pointer-events-none h-full w-full select-none rounded-full object-cover"
                     />
-                    <div
-                      style={{
-                        position: 'absolute',
-                        bottom: -2,
-                        right: -2,
-                        background: '#FF6B35',
-                        borderRadius: '50%',
-                        width: 20,
-                        height: 20,
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        boxShadow: '0 2px 5px rgba(255,107,53,0.4)',
-                      }}
-                    >
+                    <div className="absolute -bottom-0.5 -right-0.5 flex h-5 w-5 items-center justify-center rounded-full bg-[#FF6B35] shadow-[0_2px_5px_rgba(255,107,53,0.4)]">
                       {isComment ? (
-                        <svg width="10" height="10" viewBox="0 0 24 24" fill="white">
-                          <path d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2z"/>
+                        <svg
+                          width="10"
+                          height="10"
+                          viewBox="0 0 24 24"
+                          fill="white"
+                        >
+                          <path d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2z" />
                         </svg>
                       ) : (
-                        <svg width="10" height="10" viewBox="0 0 24 24" fill="white">
-                          <path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/>
+                        <svg
+                          width="10"
+                          height="10"
+                          viewBox="0 0 24 24"
+                          fill="white"
+                        >
+                          <path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z" />
                         </svg>
                       )}
                     </div>
                   </div>
 
-                  <div style={{ flex: 1 }}>
-                    <p style={{ fontSize: 14, color: '#1C1C1E', margin: 0, fontWeight: 500 }}>
-                      <strong style={{ fontWeight: 700 }}>{notif.sender?.name}</strong>{' '}
+                  <div className="flex-1">
+                    <p className="m-0 text-sm font-medium text-[#1C1C1E]">
+                      <strong className="font-bold">
+                        {notif.sender?.name}
+                      </strong>{' '}
                       {isComment ? t.commentedOnRecipe : t.startedFollowing}
                     </p>
-                    <span style={{ fontSize: 11, color: '#8E8E93' }}>
+                    <span className="text-[11px] text-[#8E8E93]">
                       {new Date(notif.created_at).toLocaleDateString()}
                     </span>
                   </div>
-                </div>
+                </motion.div>
               );
             })}
           </div>
         )}
 
         {/* Modal de perfil de usuario */}
-        {selectedUserId && (
-          <UserProfile userId={selectedUserId} onClose={() => setSelectedUserId(null)} />
-        )}
+        <AnimatePresence>
+          {selectedUserId && (
+            <UserProfile
+              userId={selectedUserId}
+              onClose={() => setSelectedUserId(null)}
+            />
+          )}
 
-        {/* Modal de comentarios de la publicación */}
-        {openCommentsRecipe && (
-          <CommentsModal recipe={openCommentsRecipe} onClose={() => setOpenCommentsRecipe(null)} />
-        )}
+          {/* Modal de comentarios de la publicación */}
+          {openCommentsRecipe && (
+            <CommentsModal
+              recipe={openCommentsRecipe}
+              onClose={() => setOpenCommentsRecipe(null)}
+            />
+          )}
+        </AnimatePresence>
       </motion.div>
     </motion.div>
   );

@@ -15,12 +15,9 @@ import ProfileTab from "./components/ProfileTab";
 import LoginPage from "./components/LoginPage";
 import { supabase } from "./lib/supabase";
 
-type Tab =
-  | "home"
-  | "discover"
-  | "add"
-  | "friends"
-  | "profile";
+type Tab = "home" | "discover" | "add" | "friends" | "profile";
+
+const VALID_TABS: Tab[] = ["home", "discover", "add", "friends", "profile"];
 
 function AppContent() {
   const { user, loading } = useAuth();
@@ -29,7 +26,7 @@ function AppContent() {
   // 1. Detectar si la URL actual contiene el parámetro de recuperación de Supabase
   const [isRecovery, setIsRecovery] = useState(
     window.location.hash.includes("type=recovery") ||
-    window.location.search.includes("type=recovery")
+      window.location.search.includes("type=recovery")
   );
 
   const [newPassword, setNewPassword] = useState("");
@@ -38,7 +35,9 @@ function AppContent() {
 
   // Escuchar si el evento de recuperación ocurre mientras la app está abierta
   useEffect(() => {
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((event) => {
       if (event === "PASSWORD_RECOVERY") {
         setIsRecovery(true);
       }
@@ -49,16 +48,34 @@ function AppContent() {
     };
   }, []);
 
-  // Escuchar el evento personalizado para ir al perfil propio
+  // Escuchar eventos personalizados para cambiar de pestaña
   useEffect(() => {
     const handleNavigateProfile = () => {
       setActiveTab("profile");
     };
+
+    const handleNavigateTab = (event: Event) => {
+      const customEvent = event as CustomEvent<{ tab?: string }>;
+      const targetTab = customEvent.detail?.tab as Tab | undefined;
+      if (targetTab && VALID_TABS.includes(targetTab)) {
+        setActiveTab(targetTab);
+      }
+    };
+
     window.addEventListener("navigate-to-profile", handleNavigateProfile);
+    window.addEventListener("cookly:navigate-tab", handleNavigateTab);
+
     return () => {
       window.removeEventListener("navigate-to-profile", handleNavigateProfile);
+      window.removeEventListener("cookly:navigate-tab", handleNavigateTab);
     };
   }, []);
+
+  const handleNavigateTabProp = (tab: string) => {
+    if (VALID_TABS.includes(tab as Tab)) {
+      setActiveTab(tab as Tab);
+    }
+  };
 
   const handleAddSuccess = () => {
     setActiveTab("profile");
@@ -82,8 +99,8 @@ function AppContent() {
 
       alert("¡Contraseña actualizada con éxito! Ya puedes iniciar sesión.");
       setIsRecovery(false);
-      window.location.hash = ""; // Limpiamos los tokens de la URL
-      window.location.href = window.location.origin; // Recargamos para ir al login limpio
+      window.location.hash = "";
+      window.location.href = window.location.origin;
     } catch (err: any) {
       setToastMessage(err.message || "Ocurrió un error al actualizar");
     } finally {
@@ -93,14 +110,7 @@ function AppContent() {
 
   if (loading) {
     return (
-      <div
-        style={{
-          display: "flex",
-          justifyContent: "center",
-          alignItems: "center",
-          height: "100vh",
-        }}
-      >
+      <div className="flex h-screen select-none items-center justify-center bg-[#F2F2F7] text-sm font-semibold text-[#8E8E93]">
         Loading...
       </div>
     );
@@ -109,35 +119,17 @@ function AppContent() {
   // 2. SI ESTÁ EN MODO RECUPERACIÓN: Muestra obligatoriamente esta pantalla de nueva contraseña
   if (isRecovery) {
     return (
-      <div
-        style={{
-          minHeight: "100vh",
-          display: "flex",
-          justifyContent: "center",
-          alignItems: "center",
-          background: "#F2F2F7",
-          padding: 24,
-        }}
-      >
-        <div
-          style={{
-            width: "100%",
-            maxWidth: 380,
-            background: "white",
-            borderRadius: 24,
-            padding: 30,
-            boxShadow: "0 10px 40px rgba(0,0,0,.08)",
-          }}
-        >
-          <h1 style={{ fontSize: 28, fontWeight: 800, marginBottom: 10, color: "#1C1C1E" }}>
+      <div className="flex min-h-screen select-none items-center justify-center bg-[#F2F2F7] p-6">
+        <div className="w-full max-w-[380px] rounded-[24px] bg-white p-[30px] shadow-[0_10px_40px_rgba(0,0,0,0.08)]">
+          <h1 className="mb-2.5 text-[28px] font-extrabold text-[#1C1C1E]">
             Nueva contraseña 🔑
           </h1>
-          <p style={{ fontSize: 14, color: "#666", marginBottom: 24 }}>
+          <p className="mb-6 text-sm text-[#666666]">
             Ingresa tu nueva contraseña para actualizar tu cuenta.
           </p>
 
           {toastMessage && (
-            <div style={{ background: "#ffe5e5", color: "#d9534f", padding: 10, borderRadius: 8, marginBottom: 16, fontSize: 13 }}>
+            <div className="mb-4 rounded-lg bg-[#ffe5e5] p-2.5 text-[13px] font-medium text-[#d9534f]">
               {toastMessage}
             </div>
           )}
@@ -148,30 +140,13 @@ function AppContent() {
               placeholder="Nueva contraseña"
               value={newPassword}
               onChange={(e) => setNewPassword(e.target.value)}
-              style={{
-                width: "100%",
-                padding: 14,
-                marginBottom: 20,
-                borderRadius: 14,
-                border: "1px solid #ddd",
-                fontSize: 14,
-                outline: "none",
-              }}
+              className="mb-5 w-full rounded-[14px] border border-[#ddd] p-3.5 text-sm outline-none transition-colors focus:border-[#FF6B35]"
               required
             />
             <button
               type="submit"
               disabled={updating}
-              style={{
-                width: "100%",
-                padding: 16,
-                borderRadius: 14,
-                background: updating ? "#ccc" : "#FF6B35",
-                color: "white",
-                fontWeight: 700,
-                border: "none",
-                cursor: updating ? "not-allowed" : "pointer",
-              }}
+              className="w-full cursor-pointer rounded-[14px] border-none bg-[#FF6B35] p-4 font-bold text-white transition-opacity disabled:cursor-not-allowed disabled:bg-[#ccc]"
             >
               {updating ? "Guardando..." : "Guardar contraseña"}
             </button>
@@ -186,39 +161,28 @@ function AppContent() {
   }
 
   return (
-    <div
-      style={{
-        maxWidth: 480,
-        margin: "0 auto",
-        minHeight: "100vh",
-        position: "relative",
-        background: "#F2F2F7",
-      }}
-    >
-      <div style={{ display: activeTab === "home" ? "block" : "none" }}>
-        <HomeTab />
+    <div className="relative mx-auto min-h-screen max-w-[480px] select-none bg-[#F2F2F7]">
+      <div className={activeTab === "home" ? "block" : "hidden"}>
+        <HomeTab onNavigateTab={handleNavigateTabProp} />
       </div>
 
-      <div style={{ display: activeTab === "discover" ? "block" : "none" }}>
+      <div className={activeTab === "discover" ? "block" : "hidden"}>
         <DiscoverTab />
       </div>
 
-      <div style={{ display: activeTab === "add" ? "block" : "none" }}>
+      <div className={activeTab === "add" ? "block" : "hidden"}>
         <AddRecipeTab onSuccess={handleAddSuccess} />
       </div>
 
-      <div style={{ display: activeTab === "friends" ? "block" : "none" }}>
+      <div className={activeTab === "friends" ? "block" : "hidden"}>
         <FriendsTab />
       </div>
 
-      <div style={{ display: activeTab === "profile" ? "block" : "none" }}>
+      <div className={activeTab === "profile" ? "block" : "hidden"}>
         <ProfileTab />
       </div>
 
-      <Navbar
-        activeTab={activeTab}
-        onTabChange={setActiveTab}
-      />
+      <Navbar activeTab={activeTab} onTabChange={setActiveTab} />
     </div>
   );
 }
@@ -230,9 +194,7 @@ export default function App() {
         <RecipesProvider>
           <LikesProvider>
             <SavesProvider>
-              <LanguageProvider>
-                <AppContent />
-              </LanguageProvider>
+              <AppContent />
             </SavesProvider>
           </LikesProvider>
         </RecipesProvider>

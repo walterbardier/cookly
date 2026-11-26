@@ -6,19 +6,25 @@ import NotificationsModal from './NotificationsModal';
 import { Recipe, CATEGORIES } from '../data/mockData';
 import { useLanguage } from '../context/LanguageContext';
 import { translations } from '../utils/translations';
-import { useRecipes } from "../context/RecipesContext";
-import { useLikes } from "../context/LikesContext";
-import { useAuth } from "../context/AuthContext";
-import { supabase } from "../lib/supabase";
+import { useRecipes } from '../context/RecipesContext';
+import { useLikes } from '../context/LikesContext';
+import { useAuth } from '../context/AuthContext';
+import { supabase } from '../lib/supabase';
 
-export default function HomeTab() {
+const iosEase = [0.22, 1, 0.36, 1] as const;
+
+interface HomeTabProps {
+  onNavigateTab?: (tab: 'home' | 'discover' | 'search' | 'add' | 'friends' | 'profile') => void;
+}
+
+export default function HomeTab({ onNavigateTab }: HomeTabProps) {
   const { language } = useLanguage();
   const t = translations[language].home;
   const { user } = useAuth();
 
   const [openRecipe, setOpenRecipe] = useState<Recipe | null>(null);
   const [activeCategory, setActiveCategory] = useState<string | null>(null);
-  
+
   // Estados para notificaciones
   const [unreadCount, setUnreadCount] = useState(0);
   const [showNotifications, setShowNotifications] = useState(false);
@@ -27,7 +33,7 @@ export default function HomeTab() {
   const { recipes, loading } = useRecipes();
 
   // Filtrar exclusivamente las recetas públicas para todo el Home
-  const publicRecipes = recipes.filter(recipe => recipe.is_public !== false);
+  const publicRecipes = recipes.filter((recipe) => recipe.is_public !== false);
 
   useEffect(() => {
     if (publicRecipes.length > 0) {
@@ -52,38 +58,35 @@ export default function HomeTab() {
     fetchUnreadCount();
   }, [user]);
 
+  const handleSeeAll = () => {
+    if (onNavigateTab) {
+      onNavigateTab('discover');
+      return;
+    }
+
+    window.dispatchEvent(
+      new CustomEvent('cookly:navigate-tab', { detail: { tab: 'discover' } })
+    );
+  };
+
   const popular = publicRecipes.slice(0, 4);
 
   const suggested = activeCategory
-    ? publicRecipes.filter(r => r.category === activeCategory)
+    ? publicRecipes.filter((r) => r.category === activeCategory)
     : publicRecipes;
 
   // Pantalla de carga con varita mágica naranja girando
   if (loading) {
     return (
-      <div style={{ 
-        minHeight: '100vh', 
-        display: 'flex', 
-        flexDirection: 'column',
-        justifyContent: 'center', 
-        alignItems: 'center', 
-        background: '#F2F2F7',
-        gap: 16
-      }}>
+      <div className="flex min-h-screen select-none flex-col items-center justify-center gap-4 bg-[#F2F2F7]">
         <motion.div
           animate={{ rotate: 360 }}
-          transition={{ repeat: Infinity, duration: 1.2, ease: "linear" }}
-          style={{ 
-            fontSize: 42, 
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            filter: 'drop-shadow(0 6px 16px rgba(255,107,53,0.4))'
-          }}
+          transition={{ repeat: Infinity, duration: 1.2, ease: 'linear' }}
+          className="flex items-center justify-center text-[42px] drop-shadow-[0_6px_16px_rgba(255,107,53,0.4)]"
         >
           🪄
         </motion.div>
-        <span style={{ fontSize: 13, fontWeight: 600, color: '#8E8E93', letterSpacing: '-0.2px' }}>
+        <span className="text-[13px] font-semibold tracking-[-0.2px] text-[#8E8E93]">
           Cargando recetas...
         </span>
       </div>
@@ -91,193 +94,208 @@ export default function HomeTab() {
   }
 
   return (
-    <div style={{ background: '#F2F2F7', minHeight: '100vh', paddingBottom: 100 }}>
-      
-      {/* 1. Header Fijo (Sticky) con Blur y Estilo iOS */}
-      <div style={{
-        background: 'rgba(242, 242, 247, 0.8)',
-        backdropFilter: 'blur(20px) saturate(180%)',
-        WebkitBackdropFilter: 'blur(20px) saturate(180%)',
-        position: 'sticky',
-        top: 0,
-        zIndex: 30,
-        paddingTop: 20,
-        paddingLeft: 20,
-        paddingRight: 20,
-        paddingBottom: 10,
-        display: 'flex',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        borderBottom: '0.5px solid rgba(0, 0, 0, 0.04)',
-      }}>
+    <div className="min-h-screen select-none bg-[#F2F2F7] pb-[100px]">
+      {/* 1. Header Fijo (Sticky) con Blur y Saturación Estilo iOS 26 */}
+      <header className="sticky top-0 z-30 flex items-center justify-between border-b-[0.5px] border-black/[0.04] bg-[#F2F2F7]/80 px-5 pb-2.5 pt-5 backdrop-blur-[20px] backdrop-saturate-[180%]">
         {/* Logo */}
-        <div style={{ display: 'flex', alignItems: 'center' }}>
-          <img 
-            src="/cookly-txt-beta-logo.png" 
-            alt="Cookly" 
-            style={{ 
-              height: 38, 
-              objectFit: 'contain', 
-              pointerEvents: 'none' 
-            }} 
-            onContextMenu={(e) => e.preventDefault()} 
-            draggable={false} 
+        <div className="flex items-center">
+          <img
+            src="/cookly-txt-beta-logo.png"
+            alt="Cookly"
+            className="pointer-events-none h-[38px] select-none object-contain"
+            onContextMenu={(e) => e.preventDefault()}
+            draggable={false}
           />
         </div>
-        
+
         {/* Botón de notificaciones */}
         <motion.button
-          whileTap={{ scale: 0.95 }}
+          type="button"
+          whileHover={{ scale: 1.03, y: -1 }}
+          whileTap={{ scale: 0.92 }}
+          transition={{ type: 'spring', stiffness: 460, damping: 28 }}
           onClick={() => setShowNotifications(true)}
-          style={{
-            width: 40,
-            height: 40,
-            borderRadius: 14,
-            background: 'white',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
-            border: 'none',
-            cursor: 'pointer',
-            position: 'relative',
-          }}
+          className="relative flex h-10 w-10 cursor-pointer items-center justify-center rounded-[14px] border-none bg-white shadow-[0_2px_8px_rgba(0,0,0,0.06)] transition-shadow duration-200 hover:shadow-[0_6px_16px_rgba(0,0,0,0.09)]"
         >
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#1C1C1E" strokeWidth="2" strokeLinecap="round">
-            <path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9"/>
-            <path d="M13.73 21a2 2 0 01-3.46 0"/>
+          <svg
+            width="20"
+            height="20"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="#1C1C1E"
+            strokeWidth="2"
+            strokeLinecap="round"
+          >
+            <path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9" />
+            <path d="M13.73 21a2 2 0 01-3.46 0" />
           </svg>
 
           {/* Badge de notificación */}
-          {unreadCount > 0 && (
-            <span style={{
-              position: 'absolute',
-              top: -4,
-              right: -4,
-              background: '#FF3B30',
-              color: 'white',
-              fontSize: 10,
-              fontWeight: 800,
-              width: 18,
-              height: 18,
-              borderRadius: '50%',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              border: '2px solid white',
-            }}>
-              {unreadCount}
-            </span>
-          )}
+          <AnimatePresence>
+            {unreadCount > 0 && (
+              <motion.span
+                initial={{ scale: 0, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                exit={{ scale: 0, opacity: 0 }}
+                transition={{ type: 'spring', stiffness: 520, damping: 26 }}
+                className="absolute -right-1 -top-1 flex h-[18px] w-[18px] items-center justify-center rounded-full border-2 border-white bg-[#FF3B30] text-[10px] font-extrabold text-white"
+              >
+                {unreadCount}
+              </motion.span>
+            )}
+          </AnimatePresence>
         </motion.button>
-      </div>
- 
-      {/* 2. Título Principal con Fade Rápido */}
-      <motion.div 
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        transition={{ duration: 0.2, ease: 'easeOut' }}
-        style={{ padding: '0 20px', marginTop: 12, marginBottom: 20 }}
+      </header>
+
+      {/* 2. Título Principal (Large Title iOS) */}
+      <motion.div
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.32, ease: iosEase }}
+        className="mb-5 mt-3 px-5"
       >
-        <p style={{ fontSize: 13, color: '#AEAEB2', fontWeight: 600, marginBottom: 4 }}>
+        <p className="mb-1 text-[13px] font-semibold text-[#AEAEB2]">
           {t.greeting}
         </p>
-        <h1 style={{ fontSize: 32, fontWeight: 800, color: '#1C1C1E', lineHeight: 1.15, letterSpacing: '-0.5px' }}>
+        <h1 className="text-[32px] font-extrabold leading-[1.15] tracking-[-0.5px] text-[#1C1C1E]">
           {t.title}
         </h1>
       </motion.div>
- 
-      {/* 3. Contenido de las Secciones con Fade Rápido y Limpio */}
-      <motion.div 
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        transition={{ duration: 0.25, ease: 'easeOut', delay: 0.05 }}
-        style={{ padding: '0 0' }}
+
+      {/* 3. Contenido de las Secciones */}
+      <motion.div
+        initial={{ opacity: 0, y: 12 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.36, ease: iosEase, delay: 0.06 }}
       >
-        <div style={{ padding: '0 0 0 0' }}>
-          {/* Popular section */}
-          <section style={{ marginBottom: 28, marginTop: 10 }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0 20px', marginBottom: 14 }}>
-              <h2 style={{ fontSize: 20, fontWeight: 800, color: '#1C1C1E' }}>{t.popular}</h2>
-              <button style={{ fontSize: 13, fontWeight: 700, color: '#FF6B35', background: 'none', border: 'none', cursor: 'pointer' }}>{t.seeAll}</button>
-            </div>
-            <div style={{
-              display: 'flex', gap: 14, overflowX: 'auto',
-              paddingLeft: 20, paddingRight: 20,
-            }}>
-              {popular.map(recipe => (
-                <RecipeCard key={recipe.id} recipe={recipe} size="large" onOpen={setOpenRecipe} />
-              ))}
-            </div>
-          </section>
+        {/* Popular section */}
+        <section className="mb-7 mt-2.5">
+          <div className="mb-3.5 flex items-center justify-between px-5">
+            <h2 className="text-[20px] font-extrabold tracking-[-0.3px] text-[#1C1C1E]">
+              {t.popular}
+            </h2>
+            <motion.button
+              type="button"
+              onClick={handleSeeAll}
+              whileHover={{ opacity: 0.78 }}
+              whileTap={{ scale: 0.95 }}
+              className="cursor-pointer select-none border-none bg-transparent text-[13px] font-bold text-[#FF6B35] transition-opacity duration-200"
+            >
+              {t.seeAll}
+            </motion.button>
+          </div>
 
-          {/* Categories */}
-          <section style={{ marginBottom: 28 }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0 20px', marginBottom: 14 }}>
-              <h2 style={{ fontSize: 20, fontWeight: 800, color: '#1C1C1E' }}>{t.categories}</h2>
-              <span style={{ fontSize: 13, color: '#AEAEB2', fontWeight: 600 }}>{suggested.length} {t.recipesCount}</span>
-            </div>
-
-            <div style={{
-              display: 'flex', gap: 10, overflowX: 'auto',
-              paddingLeft: 20, paddingRight: 20,
-            }}>
-              <button
-                onClick={() => setActiveCategory(null)}
-                style={{
-                  flexShrink: 0,
-                  padding: '8px 16px',
-                  borderRadius: 24,
-                  fontWeight: 700,
-                  fontSize: 13,
-                  background: activeCategory === null ? '#FF6B35' : 'white',
-                  color: activeCategory === null ? 'white' : '#636366',
-                  boxShadow: activeCategory === null ? '0 4px 12px rgba(255,107,53,0.35)' : '0 1px 4px rgba(0,0,0,0.06)',
-                  border: 'none',
-                  cursor: 'pointer',
-                  transition: 'background 0.15s ease, color 0.15s ease',
-                  whiteSpace: 'nowrap',
+          <div className="flex gap-3.5 overflow-x-auto px-5 pb-2 pt-1">
+            {popular.map((recipe, index) => (
+              <motion.div
+                key={recipe.id}
+                initial={{ opacity: 0, y: 12 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{
+                  duration: 0.32,
+                  ease: iosEase,
+                  delay: Math.min(index * 0.05, 0.2),
                 }}
+                whileHover={{ y: -2 }}
+                whileTap={{ scale: 0.98 }}
+                className="shrink-0 transition-transform duration-200"
               >
-                {t.allCategories}
-              </button>
-              
-              {CATEGORIES.map(cat => (
-                <button
+                <RecipeCard recipe={recipe} size="large" onOpen={setOpenRecipe} />
+              </motion.div>
+            ))}
+          </div>
+        </section>
+
+        {/* Categories */}
+        <section className="mb-7">
+          <div className="mb-3.5 flex items-center justify-between px-5">
+            <h2 className="text-[20px] font-extrabold tracking-[-0.3px] text-[#1C1C1E]">
+              {t.categories}
+            </h2>
+            <span className="text-[13px] font-semibold text-[#AEAEB2]">
+              {suggested.length} {t.recipesCount}
+            </span>
+          </div>
+
+          <div className="flex gap-2.5 overflow-x-auto px-5 pb-2 pt-1">
+            <motion.button
+              type="button"
+              whileTap={{ scale: 0.96 }}
+              transition={{ type: 'spring', stiffness: 500, damping: 30 }}
+              onClick={() => setActiveCategory(null)}
+              style={{
+                boxShadow:
+                  activeCategory === null
+                    ? '0 4px 12px rgba(255,107,53,0.35)'
+                    : '0 1px 4px rgba(0,0,0,0.06)',
+              }}
+              className={`shrink-0 cursor-pointer whitespace-nowrap rounded-[24px] border-none px-4 py-2 text-[13px] font-bold transition-all duration-200 ease-out hover:-translate-y-0.5 hover:shadow-[0_6px_18px_rgba(0,0,0,0.08)] ${
+                activeCategory === null
+                  ? 'bg-[#FF6B35] text-white'
+                  : 'bg-white text-[#636366]'
+              }`}
+            >
+              {t.allCategories}
+            </motion.button>
+
+            {CATEGORIES.map((cat) => {
+              const isSelected = activeCategory === cat.id;
+
+              return (
+                <motion.button
                   key={cat.id}
-                  onClick={() => setActiveCategory(activeCategory === cat.id ? null : cat.id)}
+                  type="button"
+                  whileTap={{ scale: 0.96 }}
+                  transition={{ type: 'spring', stiffness: 500, damping: 30 }}
+                  onClick={() => setActiveCategory(isSelected ? null : cat.id)}
                   style={{
-                    flexShrink: 0,
-                    display: 'flex', alignItems: 'center', gap: 6,
-                    padding: '8px 16px',
-                    borderRadius: 24,
-                    fontWeight: 700,
-                    fontSize: 13,
-                    background: activeCategory === cat.id ? cat.color : 'white',
-                    color: activeCategory === cat.id ? 'white' : '#1C1C1E',
-                    boxShadow: activeCategory === cat.id ? `0 4px 12px ${cat.color}55` : '0 1px 4px rgba(0,0,0,0.06)',
-                    border: 'none',
-                    cursor: 'pointer',
-                    transition: 'background 0.15s ease, color 0.15s ease',
-                    whiteSpace: 'nowrap',
+                    backgroundColor: isSelected ? cat.color : 'white',
+                    boxShadow: isSelected
+                      ? `0 4px 12px ${cat.color}55`
+                      : '0 1px 4px rgba(0,0,0,0.06)',
                   }}
+                  className={`flex shrink-0 cursor-pointer items-center gap-1.5 whitespace-nowrap rounded-[24px] border-none px-4 py-2 text-[13px] font-bold transition-all duration-200 ease-out hover:-translate-y-0.5 hover:shadow-[0_6px_18px_rgba(0,0,0,0.08)] ${
+                    isSelected ? 'text-white' : 'text-[#1C1C1E]'
+                  }`}
                 >
                   <span>{cat.emoji}</span>
                   <span>{cat.name[language]}</span>
-                </button>
-              ))}
-            </div>
-          </section>
+                </motion.button>
+              );
+            })}
+          </div>
+        </section>
 
-          {/* Suggested section */}
-          <section>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 14, padding: '0 20px' }}>
-              {suggested.map(recipe => (
-                <RecipeCard key={recipe.id} recipe={recipe} size="medium" onOpen={setOpenRecipe} />
+        {/* Suggested section */}
+        <section>
+          <div className="flex flex-col gap-3.5 px-5">
+            <AnimatePresence mode="popLayout">
+              {suggested.map((recipe, index) => (
+                <motion.div
+                  key={recipe.id}
+                  layout
+                  initial={{ opacity: 0, y: 12 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -8 }}
+                  transition={{
+                    duration: 0.28,
+                    ease: iosEase,
+                    delay: Math.min(index * 0.035, 0.18),
+                  }}
+                  whileHover={{ y: -2 }}
+                  whileTap={{ scale: 0.985 }}
+                  className="rounded-2xl transition-shadow duration-200 hover:shadow-[0_6px_18px_rgba(0,0,0,0.06)]"
+                >
+                  <RecipeCard
+                    recipe={recipe}
+                    size="medium"
+                    onOpen={setOpenRecipe}
+                  />
+                </motion.div>
               ))}
-            </div>
-          </section>
-        </div>
+            </AnimatePresence>
+          </div>
+        </section>
       </motion.div>
 
       {/* Modales con soporte de AnimatePresence y transiciones limpias */}
