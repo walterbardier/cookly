@@ -613,52 +613,104 @@ export default function ProfileTab() {
         </div>
 
         {/* RECIPES GRID */}
-        {displayRecipes.length === 0 ? (
-          <div className="py-12 text-center">
-            <div className="mb-3 text-5xl">
-              {activeTab === "recipes" ? "🍳" : "🔖"}
+        {
+          displayRecipes.length===0 ? (
+            <div className="
+            py-12
+            text-center
+            ">
+              <div className="
+              mb-3
+              text-5xl
+              ">
+                {
+                  activeTab==="recipes"
+                  ?
+                  "🍳"
+                  :
+                  "🔖"
+                }
+              </div>
+
+              <p className="
+              font-bold
+              text-zinc-900
+              ">
+                {activeTab==="recipes"
+                ?"Aún no hay recetas"
+                :"Sin guardadas"}
+              </p>
+
+              <p className="
+              mt-1
+              text-sm
+              text-zinc-400
+              ">
+                {activeTab==="recipes"
+                ?"Comparte tu primera receta"
+                :"Guarda recetas que te gusten"}
+              </p>
             </div>
-
-            <p className="m-0 font-bold text-zinc-900">
-              {activeTab === "recipes"
-                ? "Aún no hay recetas"
-                : "Sin guardadas"}
-            </p>
-
-            <p className="mt-1 text-sm text-zinc-400">
-              {activeTab === "recipes"
-                ? "Comparte tu primera receta"
-                : "Guarda recetas que te gusten"}
-            </p>
-          </div>
-        ) : (
-          <div className="mb-10 grid grid-cols-3 gap-1 overflow-hidden rounded-3xl">
-            {displayRecipes.map((recipe) => (
-              <motion.button
+          ) : (
+            <div className="
+            grid
+            grid-cols-3
+            gap-0
+            overflow-hidden
+            rounded-3xl
+            mb-10
+            ">
+            {displayRecipes.map(recipe=>(
+              <button
                 key={recipe.id}
-                type="button"
-                whileHover={{ scale: 1.02 }}
-                whileTap={{ scale: 0.96 }}
-                onClick={() => setOpenRecipe(recipe)}
-                className="group relative aspect-square cursor-pointer overflow-hidden rounded-2xl border-none bg-zinc-100 p-0"
+                onClick={()=>
+                  setOpenRecipe(recipe)
+                }
+                className="
+                relative
+                aspect-square
+                overflow-hidden
+                bg-zinc-100
+                "
               >
                 <img
                   src={recipe.image}
                   alt={recipe.title}
-                  draggable={false}
-                  onContextMenu={(e) => e.preventDefault()}
-                  className="pointer-events-none h-full w-full select-none object-cover transition-transform duration-200 group-hover:scale-105"
+                  className="
+                  h-full
+                  w-full
+                  object-cover
+                  transition
+                  hover:scale-105
+                  "
                 />
 
-                <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/70 to-transparent" />
+                <div className="
+                absolute
+                inset-0
+                bg-gradient-to-t
+                from-black/70
+                to-transparent
+                "/>
 
-                <p className="pointer-events-none absolute bottom-3 left-3 right-2 m-0 line-clamp-2 text-left text-xs font-bold text-white">
+                <p className="
+                absolute
+                bottom-4
+                left-4
+                right-2
+                text-left
+                text-xs
+                font-bold
+                text-white
+                ">
                   {recipe.title}
                 </p>
-              </motion.button>
+              </button>
+
             ))}
-          </div>
-        )}
+            </div>
+          )
+        }
 
         {/* SETTINGS */}
         <AnimatePresence>

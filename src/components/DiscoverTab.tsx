@@ -94,16 +94,16 @@ export default function DiscoverTab() {
       </header>
 
       <div className="pt-1">
-        {/* Buscador separado abajo con el resto del contenido */}
+        {/* Buscador separado abajo con margen interno para que no se corte el ring naranja */}
         <AnimatePresence initial={false}>
           {showSearchBar && (
             <motion.div
               key="discover-search-bar"
               initial={{ opacity: 0, y: -10, height: 0, marginBottom: 0 }}
-              animate={{ opacity: 1, y: 0, height: 48, marginBottom: 16 }}
+              animate={{ opacity: 1, y: 0, height: 56, marginBottom: 12 }}
               exit={{ opacity: 0, y: -12, height: 0, marginBottom: 0 }}
               transition={{ duration: 0.28, ease: iosEase }}
-              className="overflow-hidden px-5"
+              className="overflow-hidden px-4 py-1"
             >
               <div className="flex h-12 items-center gap-2.5 rounded-[16px] bg-white px-4 shadow-[0_2px_8px_rgba(0,0,0,0.06)] transition-all duration-200 focus-within:ring-2 focus-within:ring-[#FF6B35]">
                 <svg
