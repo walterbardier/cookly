@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
-import { Pencil, Plus, Check, Trash2 } from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
+import { Pencil, Check, Trash2 } from "lucide-react";
 
 import { CATEGORIES, Recipe } from "../data/mockData";
 import RecipeModal from "./RecipeModal";
@@ -9,6 +10,8 @@ import { supabase } from "../lib/supabase";
 import { useAuth } from "../context/AuthContext";
 import { useRecipes } from "../context/RecipesContext";
 import { useSaves } from "../context/SavesContext";
+
+const iosEase = [0.22, 1, 0.36, 1] as const;
 
 export default function ProfileTab() {
   const { language, setLanguage } = useLanguage();
@@ -24,9 +27,10 @@ export default function ProfileTab() {
 
   const [interests, setInterests] = useState<string[]>([]);
   const [activeTab, setActiveTab] = useState<"recipes" | "saved">("recipes");
-  
+
   const [openRecipe, setOpenRecipe] = useState<Recipe | null>(null);
   const [showSettings, setShowSettings] = useState(false);
+  const [isScrolled, setIsScrolled] = useState(false);
 
   const [isEditing, setIsEditing] = useState(false);
 
@@ -40,6 +44,15 @@ export default function ProfileTab() {
   const [avatarFile, setAvatarFile] = useState<File | null>(null);
   const [bannerFile, setBannerFile] = useState<File | null>(null);
   const [toast, setToast] = useState<string | null>(null);
+
+  useEffect(() => {
+    const handleScroll = () => {
+      setIsScrolled(window.scrollY > 18);
+    };
+
+    window.addEventListener("scroll", handleScroll, { passive: true });
+    return () => window.removeEventListener("scroll", handleScroll);
+  }, []);
 
   useEffect(() => {
     if (!user) return;
@@ -61,7 +74,7 @@ export default function ProfileTab() {
       // Cargar contador real de seguidores
       const { count: followersTotal, error: followersError } = await supabase
         .from("follows")
-        .select("*", { count: 'exact', head: true })
+        .select("*", { count: "exact", head: true })
         .eq("following_id", user.id);
 
       if (!followersError) {
@@ -71,7 +84,7 @@ export default function ProfileTab() {
       // Cargar contador real de seguidos
       const { count: followingTotal, error: followingError } = await supabase
         .from("follows")
-        .select("*", { count: 'exact', head: true })
+        .select("*", { count: "exact", head: true })
         .eq("follower_id", user.id);
 
       if (!followingError) {
@@ -91,13 +104,9 @@ export default function ProfileTab() {
     loadData();
   }, [user]);
 
-  const myRecipes = recipes.filter(
-    recipe => recipe.author_id === user?.id
-  );
-  
-  const savedList = recipes.filter(
-    recipe => savedRecipes.has(recipe.id)
-  );
+  const myRecipes = recipes.filter((recipe) => recipe.author_id === user?.id);
+
+  const savedList = recipes.filter((recipe) => savedRecipes.has(recipe.id));
 
   const startEditing = () => {
     setEditData({
@@ -118,31 +127,31 @@ export default function ProfileTab() {
   };
 
   const toggleEditInterest = (catId: string) => {
-    setEditData(prev => {
+    setEditData((prev) => {
       const exists = prev.interests.includes(catId);
       return {
         ...prev,
         interests: exists
-          ? prev.interests.filter(id => id !== catId)
-          : [...prev.interests, catId]
+          ? prev.interests.filter((id) => id !== catId)
+          : [...prev.interests, catId],
       };
     });
   };
 
-  const saveProfile = async() => {
-    if(!user || !profile) return;
+  const saveProfile = async () => {
+    if (!user || !profile) return;
 
     let avatarUrl = profile.avatar;
     let bannerUrl = profile.banner;
 
     // Subir Avatar si hay archivo nuevo
-    if(avatarFile){
+    if (avatarFile) {
       const fileName = `${user.id}-avatar-${Date.now()}`;
-      const { error:uploadError } = await supabase.storage
+      const { error: uploadError } = await supabase.storage
         .from("avatars")
         .upload(fileName, avatarFile);
 
-      if(!uploadError){
+      if (!uploadError) {
         const { data } = supabase.storage
           .from("avatars")
           .getPublicUrl(fileName);
@@ -153,13 +162,13 @@ export default function ProfileTab() {
     }
 
     // Subir Banner si hay archivo nuevo
-    if(bannerFile){
+    if (bannerFile) {
       const fileName = `${user.id}-banner-${Date.now()}`;
-      const { error:uploadError } = await supabase.storage
-        .from("avatars") // O puedes usar tu bucket correspondiente
+      const { error: uploadError } = await supabase.storage
+        .from("avatars")
         .upload(fileName, bannerFile);
 
-      if(!uploadError){
+      if (!uploadError) {
         const { data } = supabase.storage
           .from("avatars")
           .getPublicUrl(fileName);
@@ -179,7 +188,7 @@ export default function ProfileTab() {
       })
       .eq("id", user.id);
 
-    if(error){
+    if (error) {
       console.error(error);
       return;
     }
@@ -198,241 +207,186 @@ export default function ProfileTab() {
 
     setToast(t.profileSaved);
 
-    setTimeout(()=>{
+    setTimeout(() => {
       setToast(null);
-    },3000);
+    }, 3000);
   };
 
   const handleLogout = async () => {
     const { error } = await supabase.auth.signOut();
-    if(error){
+    if (error) {
       console.error(error);
     }
   };
 
-  const displayRecipes =
-    activeTab === "recipes"
-      ? myRecipes
-      : savedList;
+  const displayRecipes = activeTab === "recipes" ? myRecipes : savedList;
 
   return (
-    <div style={{
-      background:"#F2F2F7",
-      minHeight:"100vh",
-      paddingBottom:100
-    }}
-    className='mt-4'>
-      {toast && (
-        <div
-          style={{
-            position:"fixed",
-            top:24,
-            left:"50%",
-            transform:"translateX(-50%)",
-            zIndex:9999,
-            background:"rgba(255,255,255,.85)",
-            backdropFilter:"blur(20px)",
-            padding:"12px 20px",
-            borderRadius:20,
-            boxShadow:"0 10px 30px rgba(0,0,0,.15)",
-            fontWeight:700,
-            color:"#1C1C1E"
-          }}
-        >
-          ✅ {toast}
-        </div>
-      )}
+    <div className="mt-4 min-h-screen select-none bg-[#F2F2F7] pb-[100px]">
+      <AnimatePresence>
+        {toast && (
+          <motion.div
+            initial={{ opacity: 0, y: -14, x: "-50%" }}
+            animate={{ opacity: 1, y: 0, x: "-50%" }}
+            exit={{ opacity: 0, y: -14, x: "-50%" }}
+            transition={{ duration: 0.25, ease: iosEase }}
+            className="fixed left-1/2 top-6 z-[9999] select-none rounded-[20px] bg-white/85 px-5 py-3 font-bold text-[#1C1C1E] shadow-[0_10px_30px_rgba(0,0,0,0.15)] backdrop-blur-[20px]"
+          >
+            ✅ {toast}
+          </motion.div>
+        )}
+      </AnimatePresence>
 
-      <div
+      {/* Header Sticky con degradé de desvanecimiento (100% arriba -> 0% abajo) */}
+      <header
         style={{
-          background:"rgba(242,242,247,.85)",
-          backdropFilter:"blur(5px)",
-          position:"sticky",
-          top:0,
-          zIndex:30,
-          paddingTop:"env(safe-area-inset-top,44px)"
+          WebkitMaskImage:
+            "linear-gradient(to bottom, rgba(0,0,0,1) 0%, rgba(0,0,0,0.92) 64%, rgba(0,0,0,0) 100%)",
+          maskImage:
+            "linear-gradient(to bottom, rgba(0,0,0,1) 0%, rgba(0,0,0,0.92) 64%, rgba(0,0,0,0) 100%)",
         }}
+        className="sticky top-0 z-30 select-none bg-[#F2F2F7]/85 pb-7 pt-[calc(env(safe-area-inset-top,44px)+12px)] backdrop-blur-[20px] backdrop-saturate-[180%]"
       >
-        <div className="flex items-center justify-between px-5 pt-3 pb-3">
-          <h1 className="text-2xl font-extrabold text-zinc-900">
+        <div className="flex items-center justify-between px-5 pb-3 pt-3">
+          <motion.h1
+            animate={{ color: isScrolled ? "#FF6B35" : "#18181B" }}
+            transition={{ duration: 0.25, ease: iosEase }}
+            className="m-0 text-2xl font-extrabold tracking-[-0.4px]"
+          >
             {t.title}
-          </h1>
+          </motion.h1>
 
           <div className="flex items-center gap-2.5">
-            {
-              isEditing ? (
-                <button
-                  onClick={saveProfile}
-                  className="
-                  flex h-10 w-10
-                  items-center justify-center
-                  rounded-full
-                  bg-[#34C759]
-                  text-white
-                  shadow-lg
-                  active:scale-95
-                  "
+            {isEditing ? (
+              <motion.button
+                type="button"
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.92 }}
+                onClick={saveProfile}
+                className="flex h-10 w-10 cursor-pointer items-center justify-center rounded-full border-none bg-[#34C759] text-white shadow-lg transition-shadow duration-200"
+              >
+                <Check size={20} strokeWidth={3} />
+              </motion.button>
+            ) : (
+              <>
+                <motion.button
+                  type="button"
+                  whileHover={{ scale: 1.03, y: -1 }}
+                  whileTap={{ scale: 0.95 }}
+                  onClick={startEditing}
+                  className="flex cursor-pointer items-center gap-2 rounded-full border-none bg-gradient-to-br from-[#FF6B35] to-[#FF9A5C] px-4 py-2 text-[13px] font-bold text-white shadow-[0_6px_18px_rgba(255,107,53,.28)] transition-shadow duration-200 hover:shadow-[0_8px_22px_rgba(255,107,53,.38)]"
                 >
-                  <Check size={20} strokeWidth={3}/>
-                </button>
-              ) : (
-                <>
-                  <button
-                    onClick={startEditing}
-                    className="
-                    flex items-center gap-2
-                    rounded-full
-                    bg-gradient-to-br
-                    from-[#FF6B35]
-                    to-[#FF9A5C]
-                    px-4 py-2
-                    text-[13px]
-                    font-bold
-                    text-white
-                    shadow-[0_6px_18px_rgba(255,107,53,.28)]
-                    "
-                  >
-                    <Pencil size={15}/>
-                    {t.editProfile}
-                  </button>
+                  <Pencil size={15} />
+                  {t.editProfile}
+                </motion.button>
 
-                  {/* Settings button */}
-                  <button onClick={() => setShowSettings(true)} className="flex h-10 w-10 items-center justify-center rounded-4xl bg-white shadow-md transition-all hover:scale-105 active:scale-95" >
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"> <circle cx="12" cy="12" r="3" />
-                    <path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06-.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/>
-                    </svg>
-                  </button>
-                </>
-              )
-            }
+                {/* Settings button */}
+                <motion.button
+                  type="button"
+                  whileHover={{ scale: 1.05, y: -1 }}
+                  whileTap={{ scale: 0.92 }}
+                  transition={{ type: "spring", stiffness: 460, damping: 28 }}
+                  onClick={() => setShowSettings(true)}
+                  className="flex h-10 w-10 cursor-pointer items-center justify-center rounded-full border-none bg-white text-[#1C1C1E] shadow-[0_2px_8px_rgba(0,0,0,0.06)] transition-shadow duration-200 hover:shadow-[0_6px_16px_rgba(0,0,0,0.09)]"
+                >
+                  <svg
+                    width="18"
+                    height="18"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                  >
+                    <circle cx="12" cy="12" r="3" />
+                    <path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06-.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z" />
+                  </svg>
+                </motion.button>
+              </>
+            )}
           </div>
         </div>
-      </div>
+      </header>
 
-      <div style={{ padding:"20px 20px 0" }}>
+      <div className="px-5 pt-3">
         {/* Contenedor del Perfil con Banner */}
-        <div
-          style={{
-            background:"white",
-            boxShadow:"0 10px 30px rgba(0,0,0,.06)",
-            overflow: "hidden",
-          }}
-          className="rounded-4xl mb-4"
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.3, ease: iosEase }}
+          className="mb-4 overflow-hidden rounded-[32px] bg-white shadow-[0_10px_30px_rgba(0,0,0,.06)]"
         >
           {/* Banner de fondo */}
           <div
             style={{
-              width: '100%',
-              height: 130,
-              background: bannerFile 
-                ? `url(${URL.createObjectURL(bannerFile)}) center/cover no-repeat` 
-                : profile?.banner 
-                  ? `url(${profile.banner}) center/cover no-repeat` 
-                  : 'linear-gradient(135deg, #FF6B35, #FF9A5C)',
-              position: 'relative',
+              background: bannerFile
+                ? `url(${URL.createObjectURL(bannerFile)}) center/cover no-repeat`
+                : profile?.banner
+                  ? `url(${profile.banner}) center/cover no-repeat`
+                  : "linear-gradient(135deg, #FF6B35, #FF9A5C)",
             }}
+            className="relative h-[130px] w-full"
           >
             {/* Botón de lápiz gris oscuro para editar banner en modo edición */}
             {isEditing && (
               <label
-                style={{
-                  position: 'absolute',
-                  top: 12,
-                  right: 12,
-                  width: 32,
-                  height: 32,
-                  borderRadius: '50%',
-                  background: '#3A3A3C', // Gris oscuro
-                  color: 'white',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  cursor: 'pointer',
-                  boxShadow: '0 2px 8px rgba(0,0,0,0.25)',
-                  zIndex: 3,
-                }}
                 title="Cambiar banner"
+                className="absolute right-3 top-3 z-[3] flex h-8 w-8 cursor-pointer items-center justify-center rounded-full bg-[#3A3A3C] text-white shadow-[0_2px_8px_rgba(0,0,0,0.25)] transition-transform duration-200 hover:scale-105"
               >
                 <Pencil size={15} />
                 <input
                   type="file"
                   accept="image/*"
                   hidden
-                  onChange={(e) =>
-                    setBannerFile(e.target.files?.[0] ?? null)
-                  }
+                  onChange={(e) => setBannerFile(e.target.files?.[0] ?? null)}
                 />
               </label>
             )}
 
-            <div
-              style={{
-                position: 'absolute',
-                bottom: 0,
-                left: 0,
-                right: 0,
-                height: 24,
-                background: 'linear-gradient(to top, rgba(0,0,0,0.15), transparent)',
-              }}
-            />
+            <div className="pointer-events-none absolute bottom-0 left-0 right-0 h-6 bg-gradient-to-t from-black/15 to-transparent" />
           </div>
 
-          <div style={{ padding: '0 24px 24px' }}>
-            <div
-              style={{
-                display:"flex",
-                justifyContent:"center",
-                marginTop:-46,
-                marginBottom:18,
-                position: 'relative',
-                zIndex: 2,
-              }}
-            >
+          <div className="px-6 pb-6">
+            <div className="relative z-[2] -mt-[46px] mb-[18px] flex justify-center">
               {/* Contenedor del Avatar con soporte para Hover y Borrado */}
-              <div className="relative inline-block group">
+              <div className="group relative inline-block">
                 {avatarFile || profile?.avatar ? (
                   <img
                     src={
                       avatarFile
-                      ? URL.createObjectURL(avatarFile)
-                      : profile?.avatar
+                        ? URL.createObjectURL(avatarFile)
+                        : profile?.avatar
                     }
                     alt={profile?.name}
-                    style={{
-                      width:84,
-                      height:84,
-                      borderRadius:"50%",
-                      objectFit:"cover",
-                      border:"4px solid white",
-                      boxShadow:"0 8px 20px rgba(0,0,0,.15)"
-                    }}
+                    draggable={false}
+                    onContextMenu={(e) => e.preventDefault()}
+                    className="pointer-events-none h-[84px] w-[84px] select-none rounded-full border-4 border-white object-cover shadow-[0_8px_20px_rgba(0,0,0,.15)]"
                   />
                 ) : (
-                  <div style={{
-                    width: 84,
-                    height: 84,
-                    borderRadius: "50%",
-                    background: "#E5E5EA",
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    border: "4px solid white",
-                    boxShadow: "0 8px 20px rgba(0,0,0,.15)"
-                  }}>
-                    <svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="#8E8E93" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                      <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
-                      <circle cx="12" cy="7" r="4"/>
+                  <div className="flex h-[84px] w-[84px] items-center justify-center rounded-full border-4 border-white bg-[#E5E5EA] shadow-[0_8px_20px_rgba(0,0,0,.15)]">
+                    <svg
+                      width="34"
+                      height="34"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="#8E8E93"
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    >
+                      <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+                      <circle cx="12" cy="7" r="4" />
                     </svg>
                   </div>
                 )}
 
                 {/* Tacho de basura rojo al hacer hover en modo edición */}
                 {isEditing && (avatarFile || profile?.avatar) && (
-                  <div className="absolute inset-0 rounded-full bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                  <div className="absolute inset-0 flex items-center justify-center rounded-full bg-black/40 opacity-0 transition-opacity group-hover:opacity-100">
                     <button
                       type="button"
                       onClick={handleRemoveAvatar}
-                      className="w-10 h-10 rounded-full bg-red-500 text-white flex items-center justify-center shadow-lg hover:scale-110 transition-transform cursor-pointer"
+                      className="flex h-10 w-10 cursor-pointer items-center justify-center rounded-full border-none bg-red-500 text-white shadow-lg transition-transform hover:scale-110"
                       title="Eliminar foto"
                     >
                       <Trash2 size={18} />
@@ -441,535 +395,371 @@ export default function ProfileTab() {
                 )}
 
                 {/* Botón de lápiz para cambiar foto */}
-                {
-                  isEditing && (
-                    <label
-                      style={{
-                        position:"absolute",
-                        bottom:0,
-                        right:0,
-                        width:28,
-                        height:28,
-                        borderRadius:"50%",
-                        background:"#FF6B35",
-                        color:"white",
-                        display:"flex",
-                        alignItems:"center",
-                        justifyContent:"center",
-                        cursor:"pointer",
-                        boxShadow: "0 4px 10px rgba(0,0,0,0.15)"
-                      }}
-                    >
-                      <Pencil size={13}/>
-                      <input
-                        type="file"
-                        accept="image/*"
-                        hidden
-                        onChange={(e)=>
-                          setAvatarFile(
-                            e.target.files?.[0] ?? null
-                          )
-                        }
-                      />
-                    </label>
-                  )
-                }
+                {isEditing && (
+                  <label className="absolute bottom-0 right-0 flex h-7 w-7 cursor-pointer items-center justify-center rounded-full bg-[#FF6B35] text-white shadow-[0_4px_10px_rgba(0,0,0,0.15)] transition-transform duration-200 hover:scale-105">
+                    <Pencil size={13} />
+                    <input
+                      type="file"
+                      accept="image/*"
+                      hidden
+                      onChange={(e) =>
+                        setAvatarFile(e.target.files?.[0] ?? null)
+                      }
+                    />
+                  </label>
+                )}
               </div>
             </div>
 
-            <div style={{ textAlign:"center" }}>
-              {
-                isEditing ? (
-                  <input
-                    value={editData.name}
-                    onChange={(e)=>
-                      setEditData({
-                        ...editData,
-                        name:e.target.value
-                      })
-                    }
-                    className="
-                    w-full
-                    text-center
-                    text-2xl
-                    font-extrabold
-                    bg-[#F2F2F7]
-                    rounded-xl
-                    px-3 py-2
-                    outline-none
-                    "
-                  />
-                ) : (
-                  <h2
-                    style={{
-                      fontSize:24,
-                      fontWeight:800,
-                      color:"#1C1C1E"
-                    }}
-                  >
-                    {profile?.name}
-                  </h2>
-                )
-              }
+            <div className="text-center">
+              {isEditing ? (
+                <input
+                  value={editData.name}
+                  onChange={(e) =>
+                    setEditData({
+                      ...editData,
+                      name: e.target.value,
+                    })
+                  }
+                  className="w-full select-text rounded-xl bg-[#F2F2F7] px-3 py-2 text-center text-2xl font-extrabold outline-none"
+                />
+              ) : (
+                <h2 className="m-0 text-2xl font-extrabold text-[#1C1C1E]">
+                  {profile?.name}
+                </h2>
+              )}
 
-              {
-                isEditing ? (
-                  <input
-                    value={editData.username}
-                    onChange={(e)=>
-                      setEditData({
-                        ...editData,
-                        username:e.target.value
-                      })
-                    }
-                    className="
-                    mt-2
-                    w-full
-                    text-center
-                    bg-[#F2F2F7]
-                    rounded-xl
-                    px-3 py-2
-                    text-zinc-500
-                    outline-none
-                    "
-                  />
-                ) : (
-                  <p
-                    style={{
-                      color:"#8E8E93",
-                      fontWeight:600,
-                      marginTop:4
-                    }}
-                  >
-                    @{profile?.username}
-                  </p>
-                )
-              }
-              {
-                isEditing ? (
-                  <textarea
-                    value={editData.bio}
-                    onChange={(e)=>
-                      setEditData({
-                        ...editData,
-                        bio:e.target.value
-                      })
-                    }
-                    className="
-                    mt-4
-                    w-full
-                    rounded-2xl
-                    bg-[#F2F2F7]
-                    p-3
-                    text-center
-                    text-sm
-                    text-zinc-700
-                    outline-none
-                    resize-none
-                    "
-                    rows={3}
-                  />
-                ) : (
-                  <p
-                    className="
-                    mx-auto
-                    mt-3
-                    max-w-[320px]
-                    text-sm
-                    leading-relaxed
-                    text-zinc-500
-                    "
-                  >
-                    {profile?.bio}
-                  </p>
-                )
-              }
+              {isEditing ? (
+                <input
+                  value={editData.username}
+                  onChange={(e) =>
+                    setEditData({
+                      ...editData,
+                      username: e.target.value,
+                    })
+                  }
+                  className="mt-2 w-full select-text rounded-xl bg-[#F2F2F7] px-3 py-2 text-center text-zinc-500 outline-none"
+                />
+              ) : (
+                <p className="m-0 mt-1 font-semibold text-[#8E8E93]">
+                  @{profile?.username}
+                </p>
+              )}
+
+              {isEditing ? (
+                <textarea
+                  value={editData.bio}
+                  onChange={(e) =>
+                    setEditData({
+                      ...editData,
+                      bio: e.target.value,
+                    })
+                  }
+                  className="mt-4 w-full resize-none select-text rounded-2xl bg-[#F2F2F7] p-3 text-center text-sm text-zinc-700 outline-none"
+                  rows={3}
+                />
+              ) : (
+                <p className="mx-auto mt-3 max-w-[320px] text-sm leading-relaxed text-zinc-500">
+                  {profile?.bio}
+                </p>
+              )}
             </div>
 
             {/* Contenedor de Contadores */}
-            <div className="
-            mt-6
-            grid
-            grid-cols-3
-            gap-3
-            ">
+            <div className="mt-6 grid grid-cols-3 gap-3">
               {[
                 {
                   value: myRecipes.length,
-                  label: t.recipesCount
+                  label: t.recipesCount,
                 },
                 {
                   value: followersCount,
-                  label: t.followers
+                  label: t.followers,
                 },
                 {
                   value: followingCount,
-                  label: t.following
-                }
-              ].map(stat=>(
+                  label: t.following,
+                },
+              ].map((stat) => (
                 <div
                   key={stat.label}
-                  className="
-                  rounded-2xl
-                  bg-[#F7F7FA]
-                  px-2
-                  py-4
-                  text-center
-                  "
+                  className="rounded-2xl bg-[#F7F7FA] px-2 py-4 text-center transition-transform duration-200 hover:-translate-y-0.5"
                 >
-                  <div className="
-                  text-2xl
-                  font-extrabold
-                  text-zinc-900
-                  ">
+                  <div className="text-2xl font-extrabold text-zinc-900">
                     {stat.value}
                   </div>
 
-                  <div className="
-                  mt-1
-                  text-xs
-                  font-semibold
-                  text-zinc-400
-                  ">
+                  <div className="mt-1 text-xs font-semibold text-zinc-400">
                     {stat.label}
                   </div>
                 </div>
               ))}
             </div>
           </div>
-        </div>
+        </motion.div>
 
         {/* INTERESTS */}
-        <div className="
-        mb-4
-        rounded-4xl
-        bg-white
-        p-4
-        shadow-sm
-        ">
-          <div className="mt-1 ml-1 mr-1">
-            <p className="
-            mb-3
-            text-xs
-            font-bold
-            uppercase
-            tracking-wider
-            text-zinc-500
-            ">
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.32, ease: iosEase, delay: 0.04 }}
+          className="mb-4 rounded-[32px] bg-white p-4 shadow-sm"
+        >
+          <div className="mx-1 mt-1">
+            <p className="mb-3 mt-0 text-xs font-bold uppercase tracking-wider text-zinc-500">
               {t.interests}
             </p>
 
-            <div className="
-            flex
-            flex-wrap
-            gap-2
-            ">
-              {isEditing ? (
-                CATEGORIES.map(cat => {
-                  const isSelected = editData.interests.includes(cat.id);
-                  return (
-                    <button
-                      key={cat.id}
-                      type="button"
-                      onClick={() => toggleEditInterest(cat.id)}
-                      className="flex items-center gap-1.5 rounded-full px-3 py-1.5 transition-all cursor-pointer"
-                      style={{
-                        background: isSelected ? cat.bgColor : '#F2F2F7',
-                        border: `1.5px solid ${isSelected ? cat.color : '#E5E5EA'}`,
-                        opacity: isSelected ? 1 : 0.6,
-                      }}
-                    >
-                      <span>{cat.emoji}</span>
-                      <span
-                        className="text-xs font-bold"
+            <div className="flex flex-wrap gap-2">
+              {isEditing
+                ? CATEGORIES.map((cat) => {
+                    const isSelected = editData.interests.includes(cat.id);
+                    return (
+                      <button
+                        key={cat.id}
+                        type="button"
+                        onClick={() => toggleEditInterest(cat.id)}
                         style={{
-                          color: isSelected ? cat.color : '#8E8E93',
+                          background: isSelected ? cat.bgColor : "#F2F2F7",
+                          border: `1.5px solid ${isSelected ? cat.color : "#E5E5EA"}`,
+                          opacity: isSelected ? 1 : 0.6,
                         }}
+                        className="flex cursor-pointer items-center gap-1.5 rounded-full px-3 py-1.5 transition-all"
                       >
-                        {cat.name[language]}
-                      </span>
-                    </button>
-                  );
-                })
-              ) : (
-                interests.map(id => {
-                  const cat = CATEGORIES.find(c => c.id === id);
-                  if(!cat) return null;
-                  return (
-                    <div
-                      key={cat.id}
-                      className="
-                      flex
-                      items-center
-                      gap-1.5
-                      rounded-full
-                      px-3
-                      py-1.5
-                      "
-                      style={{
-                        background: cat.bgColor
-                      }}
-                    >
-                      <span>
-                        {cat.emoji}
-                      </span>
-                      <span
-                        className="
-                        text-xs
-                        font-bold
-                        "
+                        <span>{cat.emoji}</span>
+                        <span
+                          style={{
+                            color: isSelected ? cat.color : "#8E8E93",
+                          }}
+                          className="text-xs font-bold"
+                        >
+                          {cat.name[language]}
+                        </span>
+                      </button>
+                    );
+                  })
+                : interests.map((id) => {
+                    const cat = CATEGORIES.find((c) => c.id === id);
+                    if (!cat) return null;
+                    return (
+                      <div
+                        key={cat.id}
                         style={{
-                          color: cat.color
+                          background: cat.bgColor,
                         }}
+                        className="flex items-center gap-1.5 rounded-full px-3 py-1.5 transition-transform duration-200 hover:-translate-y-0.5"
                       >
-                        {cat.name[language]}
-                      </span>
-                    </div>
-                  );
-                })
-              )}
+                        <span>{cat.emoji}</span>
+                        <span
+                          style={{
+                            color: cat.color,
+                          }}
+                          className="text-xs font-bold"
+                        >
+                          {cat.name[language]}
+                        </span>
+                      </div>
+                    );
+                  })}
 
               {!isEditing && interests.length === 0 && (
-                <p className="text-xs text-zinc-400 italic">Sin intereses seleccionados</p>
+                <p className="m-0 text-xs italic text-zinc-400">
+                  Sin intereses seleccionados
+                </p>
               )}
             </div>
           </div>
-        </div>
+        </motion.div>
 
         {/* TABS */}
-        <div className="
-        mb-4
-        flex
-        rounded-4xl
-        bg-white
-        p-1
-        shadow-sm
-        ">
-          {([
-            {
-              key: "recipes" as const,
-              label: t.myRecipes,
-              icon: "👨‍🍳"
-            },
-            {
-              key: "saved" as const,
-              label: t.saved,
-              icon: "🔖"
-            }
-          ] as { key: "recipes" | "saved"; label: string; icon: string }[]).map(tab => (
-            <button
-              key={tab.key}
-              onClick={() =>
-                setActiveTab(tab.key)
-              }
-              className={`
-              flex-1
-              rounded-4xl
-              py-3
-              text-sm
-              font-bold
-              transition
-              ${
-                activeTab === tab.key
-                ?
-                "bg-gradient-to-br from-[#FF6B35] to-[#FF9A5C] text-white shadow-md"
-                :
-                "text-zinc-400"
-              }
-              `}
-            >
-              {tab.icon} {tab.label}
-            </button>
-          ))}
+        <div className="mb-4 flex rounded-full bg-white p-1 shadow-sm">
+          {(
+            [
+              {
+                key: "recipes" as const,
+                label: t.myRecipes,
+                icon: "👨‍🍳",
+              },
+              {
+                key: "saved" as const,
+                label: t.saved,
+                icon: "🔖",
+              },
+            ] as { key: "recipes" | "saved"; label: string; icon: string }[]
+          ).map((tab) => {
+            const isActive = activeTab === tab.key;
+            return (
+              <button
+                key={tab.key}
+                type="button"
+                onClick={() => setActiveTab(tab.key)}
+                className={`relative flex-1 cursor-pointer rounded-full border-none py-3 text-sm font-bold transition-colors duration-200 ${
+                  isActive ? "text-white" : "bg-transparent text-zinc-400"
+                }`}
+              >
+                {isActive && (
+                  <motion.div
+                    layoutId="profile-active-tab-pill"
+                    transition={{ type: "spring", stiffness: 460, damping: 32 }}
+                    className="absolute inset-0 rounded-full bg-gradient-to-br from-[#FF6B35] to-[#FF9A5C] shadow-md"
+                  />
+                )}
+                <span className="relative z-[1]">
+                  {tab.icon} {tab.label}
+                </span>
+              </button>
+            );
+          })}
         </div>
 
         {/* RECIPES GRID */}
-        {
-          displayRecipes.length===0 ? (
-            <div className="
-            py-12
-            text-center
-            ">
-              <div className="
-              mb-3
-              text-5xl
-              ">
-                {
-                  activeTab==="recipes"
-                  ?
-                  "🍳"
-                  :
-                  "🔖"
-                }
-              </div>
-
-              <p className="
-              font-bold
-              text-zinc-900
-              ">
-                {activeTab==="recipes"
-                ?"Aún no hay recetas"
-                :"Sin guardadas"}
-              </p>
-
-              <p className="
-              mt-1
-              text-sm
-              text-zinc-400
-              ">
-                {activeTab==="recipes"
-                ?"Comparte tu primera receta"
-                :"Guarda recetas que te gusten"}
-              </p>
+        {displayRecipes.length === 0 ? (
+          <div className="py-12 text-center">
+            <div className="mb-3 text-5xl">
+              {activeTab === "recipes" ? "🍳" : "🔖"}
             </div>
-          ) : (
-            <div className="
-            grid
-            grid-cols-3
-            gap-0
-            overflow-hidden
-            rounded-3xl
-            mb-10
-            ">
-            {displayRecipes.map(recipe=>(
-              <button
+
+            <p className="m-0 font-bold text-zinc-900">
+              {activeTab === "recipes"
+                ? "Aún no hay recetas"
+                : "Sin guardadas"}
+            </p>
+
+            <p className="mt-1 text-sm text-zinc-400">
+              {activeTab === "recipes"
+                ? "Comparte tu primera receta"
+                : "Guarda recetas que te gusten"}
+            </p>
+          </div>
+        ) : (
+          <div className="mb-10 grid grid-cols-3 gap-1 overflow-hidden rounded-3xl">
+            {displayRecipes.map((recipe) => (
+              <motion.button
                 key={recipe.id}
-                onClick={()=>
-                  setOpenRecipe(recipe)
-                }
-                className="
-                relative
-                aspect-square
-                overflow-hidden
-                bg-zinc-100
-                "
+                type="button"
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.96 }}
+                onClick={() => setOpenRecipe(recipe)}
+                className="group relative aspect-square cursor-pointer overflow-hidden rounded-2xl border-none bg-zinc-100 p-0"
               >
                 <img
                   src={recipe.image}
                   alt={recipe.title}
-                  className="
-                  h-full
-                  w-full
-                  object-cover
-                  transition
-                  hover:scale-105
-                  "
+                  draggable={false}
+                  onContextMenu={(e) => e.preventDefault()}
+                  className="pointer-events-none h-full w-full select-none object-cover transition-transform duration-200 group-hover:scale-105"
                 />
 
-                <div className="
-                absolute
-                inset-0
-                bg-gradient-to-t
-                from-black/70
-                to-transparent
-                "/>
+                <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/70 to-transparent" />
 
-                <p className="
-                absolute
-                bottom-4
-                left-4
-                right-2
-                text-left
-                text-xs
-                font-bold
-                text-white
-                ">
+                <p className="pointer-events-none absolute bottom-3 left-3 right-2 m-0 line-clamp-2 text-left text-xs font-bold text-white">
                   {recipe.title}
                 </p>
-              </button>
-
+              </motion.button>
             ))}
-
-            </div>
-
-          )
-
-        }
-
-        {/* SETTINGS */}
-        {showSettings && (
-          <div className="fixed inset-0 z-[100] flex items-end bg-black/40 backdrop-blur-sm">
-            <div className="w-full rounded-t-[28px] bg-white p-6">
-              {/* Header */}
-              <div className="mb-6 flex items-center justify-between">
-                <h3 className="text-xl font-extrabold">
-                  {t.settings}
-                </h3>
-
-                <button
-                  onClick={()=> setShowSettings(false)}
-                  className="flex h-8 w-8 items-center justify-center rounded-full bg-[#F2F2F7]">
-                  ✕
-                </button>
-              </div>
-
-              <div className="flex flex-col gap-4">
-                {/* Selector de Idioma */}
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '16px', background: '#F2F2F7', borderRadius: 20 }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                    <span style={{ fontSize: 20 }}>🌐</span>
-                    <span style={{ fontWeight: 700, color: '#1C1C1E' }}>{t.language}</span>
-                  </div>
-
-                  <div style={{ display: 'flex', background: '#E5E5EA', borderRadius: 10, padding: 3 }}>
-                    <button
-                      onClick={() => setLanguage('es')}
-                      style={{
-                        padding: '6px 14px',
-                        borderRadius: 8,
-                        background: language === 'es' ? 'white' : 'transparent',
-                        boxShadow: language === 'es' ? '0 2px 4px rgba(0,0,0,0.05)' : 'none',
-                        fontWeight: 700,
-                        fontSize: 13,
-                        color: language === 'es' ? '#1C1C1E' : '#8E8E93',
-                        transition: 'all 0.2s ease'
-                      }}
-                    >
-                      ES
-                    </button>
-
-                    <button
-                      onClick={() => setLanguage('en')}
-                      style={{
-                        padding: '6px 14px',
-                        borderRadius: 8,
-                        background: language === 'en' ? 'white' : 'transparent',
-                        boxShadow: language === 'en' ? '0 2px 4px rgba(0,0,0,0.05)' : 'none',
-                        fontWeight: 700,
-                        fontSize: 13,
-                        color: language === 'en' ? '#1C1C1E' : '#8E8E93',
-                        transition: 'all 0.2s ease'
-                      }}
-                    >
-                      EN
-                    </button>
-                  </div>
-                </div>
-
-                <button
-                  onClick={handleLogout}
-                  className="flex w-full items-center justify-between rounded-2xl bg-[#F2F2F7] px-4 py-4 font-bold text-red-500 transition-colors hover:bg-[#E9E9EE]"
-                >
-                  <span>🚪 {t.logout}</span>
-                  <span>→</span>
-                </button>
-              </div>
-              
-            </div>
           </div>
         )}
+
+        {/* SETTINGS */}
+        <AnimatePresence>
+          {showSettings && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.2, ease: iosEase }}
+              onClick={() => setShowSettings(false)}
+              className="fixed inset-0 z-[100] flex items-end justify-center bg-black/45 backdrop-blur-[4px]"
+            >
+              <motion.div
+                onClick={(e) => e.stopPropagation()}
+                initial={{ y: "100%" }}
+                animate={{ y: 0 }}
+                exit={{ y: "100%" }}
+                transition={{ type: "spring", stiffness: 280, damping: 28 }}
+                className="w-full max-w-[480px] rounded-t-[28px] bg-white p-6 shadow-[0_-12px_40px_rgba(0,0,0,0.16)]"
+              >
+                {/* Header */}
+                <div className="mb-6 flex items-center justify-between">
+                  <h3 className="m-0 text-xl font-extrabold text-[#1C1C1E]">
+                    {t.settings}
+                  </h3>
+
+                  <motion.button
+                    type="button"
+                    whileHover={{ scale: 1.05 }}
+                    whileTap={{ scale: 0.9 }}
+                    onClick={() => setShowSettings(false)}
+                    className="flex h-8 w-8 cursor-pointer items-center justify-center rounded-full border-none bg-[#F2F2F7] text-xs font-bold text-[#636366] transition-colors duration-200 hover:bg-[#E5E5EA]"
+                  >
+                    ✕
+                  </motion.button>
+                </div>
+
+                <div className="flex flex-col gap-4">
+                  {/* Switch de Idioma iOS 26 Vibes */}
+                  <div className="flex items-center justify-between rounded-[20px] bg-[#F2F2F7] p-4">
+                    <div className="flex items-center gap-3">
+                      <span className="text-xl">🌐</span>
+                      <span className="font-bold text-[#1C1C1E]">
+                        {t.language}
+                      </span>
+                    </div>
+
+                    <div className="relative flex rounded-full border border-black/[0.04] bg-[#E5E5EA] p-1 shadow-inner">
+                      {(["es", "en"] as const).map((langOption) => {
+                        const isSelected = language === langOption;
+                        return (
+                          <button
+                            key={langOption}
+                            type="button"
+                            onClick={() => setLanguage(langOption)}
+                            className={`relative z-[1] cursor-pointer rounded-full border-none px-4 py-1.5 text-[13px] font-extrabold uppercase transition-colors duration-200 ${
+                              isSelected ? "text-[#1C1C1E]" : "text-[#8E8E93]"
+                            }`}
+                          >
+                            {isSelected && (
+                              <motion.div
+                                layoutId="ios26-language-switch-thumb"
+                                transition={{
+                                  type: "spring",
+                                  stiffness: 520,
+                                  damping: 32,
+                                }}
+                                className="absolute inset-0 -z-[1] rounded-full bg-white shadow-[0_3px_8px_rgba(0,0,0,0.12),0_1px_2px_rgba(0,0,0,0.06)]"
+                              />
+                            )}
+                            {langOption.toUpperCase()}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  <motion.button
+                    type="button"
+                    whileTap={{ scale: 0.985 }}
+                    onClick={handleLogout}
+                    className="flex w-full cursor-pointer items-center justify-between rounded-2xl border-none bg-[#F2F2F7] px-4 py-4 font-bold text-red-500 transition-colors hover:bg-[#E9E9EE]"
+                  >
+                    <span>🚪 {t.logout}</span>
+                    <span>→</span>
+                  </motion.button>
+                </div>
+              </motion.div>
+            </motion.div>
+          )}
+        </AnimatePresence>
       </div>
 
-      {
-        openRecipe &&
-        <RecipeModal
-          recipe={openRecipe}
-          onClose={()=>
-            setOpenRecipe(null)
-          }
-        />
-      }
-
+      <AnimatePresence>
+        {openRecipe && (
+          <RecipeModal
+            recipe={openRecipe}
+            onClose={() => setOpenRecipe(null)}
+          />
+        )}
+      </AnimatePresence>
     </div>
   );
 }
