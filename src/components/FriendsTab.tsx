@@ -652,9 +652,9 @@ export default function FriendsTab() {
               animate={{ y: 0 }}
               exit={{ y: '100%' }}
               transition={{ type: 'spring', stiffness: 280, damping: 28 }}
-              className="flex max-h-[82vh] w-full max-w-[440px] select-none flex-col overflow-hidden rounded-t-[28px] bg-white p-5 shadow-[0_-12px_40px_rgba(0,0,0,0.16)] sm:rounded-[28px]"
+              className="flex h-[76vh] max-h-[82vh] w-full max-w-[440px] select-none flex-col overflow-hidden rounded-t-[28px] bg-white p-5 shadow-[0_-12px_40px_rgba(0,0,0,0.16)] sm:h-[620px] sm:rounded-[28px]"
             >
-              <div className="mb-4 flex items-center justify-between">
+              <div className="mb-4 flex shrink-0 items-center justify-between">
                 <h2 className="m-0 text-[18px] font-extrabold tracking-[-0.3px] text-[#1C1C1E]">
                   {t.suggestions}
                 </h2>
@@ -672,8 +672,8 @@ export default function FriendsTab() {
                 </motion.button>
               </div>
 
-              {/* Input para ingresar usuario */}
-              <div className="relative mb-4">
+              {/* Buscador con fade blanco suave hacia abajo sobre la lista */}
+              <div className="relative z-20 shrink-0 pb-2">
                 <input
                   type="text"
                   value={friendSearchQuery}
@@ -682,12 +682,14 @@ export default function FriendsTab() {
                   autoFocus
                   className="w-full select-none rounded-[14px] border border-[#E5E5EA] bg-[#F9F9FB] px-4 py-3 text-sm font-semibold text-[#1C1C1E] outline-none transition-all duration-200 focus:border-[1.5px] focus:border-[#FF6B35] focus:bg-[#FFFDFB] focus:shadow-[0_0_0_4px_rgba(255,107,53,0.12)]"
                 />
+                {/* Fade blanco hacia abajo (blanco arriba -> 0% opacidad abajo) */}
+                <div className="pointer-events-none absolute -bottom-5 left-0 right-0 h-6 bg-gradient-to-b from-white via-white/90 to-transparent" />
               </div>
 
-              {/* Lista de usuarios encontrados */}
-              <div className="flex flex-col gap-2.5 overflow-y-auto pb-2">
+              {/* Lista de usuarios encontrados con altura fija del modal */}
+              <div className="flex flex-1 flex-col gap-2.5 overflow-y-auto pb-2 pt-3">
                 {filteredAddUsers.length === 0 ? (
-                  <div className="py-8 text-center text-sm font-semibold text-[#8E8E93]">
+                  <div className="flex flex-1 items-center justify-center text-center text-sm font-semibold text-[#8E8E93]">
                     @{friendSearchQuery.trim().replace(/^@/, '')}
                   </div>
                 ) : (
