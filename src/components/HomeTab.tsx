@@ -75,7 +75,7 @@ export default function HomeTab({ onNavigateTab }: HomeTabProps) {
     ? publicRecipes.filter((r) => r.category === activeCategory)
     : publicRecipes;
 
-  // Pantalla de carga con varita mágica naranja girando
+  // Pantalla de carga con varita mágica girando
   if (loading) {
     return (
       <div className="flex min-h-screen select-none flex-col items-center justify-center gap-4 bg-[#F2F2F7]">
@@ -95,8 +95,16 @@ export default function HomeTab({ onNavigateTab }: HomeTabProps) {
 
   return (
     <div className="min-h-screen select-none bg-[#F2F2F7] pb-[100px]">
-      {/* 1. Header Fijo (Sticky) con Blur y Saturación Estilo iOS 26 */}
-      <header className="sticky top-0 z-30 flex items-center justify-between border-b-[0.5px] border-black/[0.04] bg-[#F2F2F7]/80 px-5 pb-2.5 pt-5 backdrop-blur-[20px] backdrop-saturate-[180%]">
+      {/* 1. Header Fijo (Sticky) con Degradé de Desvanecimiento (100% arriba -> 0% abajo) */}
+      <header
+        style={{
+          WebkitMaskImage:
+            'linear-gradient(to bottom, rgba(0,0,0,1) 0%, rgba(0,0,0,0.92) 58%, rgba(0,0,0,0) 100%)',
+          maskImage:
+            'linear-gradient(to bottom, rgba(0,0,0,1) 0%, rgba(0,0,0,0.92) 58%, rgba(0,0,0,0) 100%)',
+        }}
+        className="sticky top-0 z-30 flex select-none items-center justify-between bg-[#F2F2F7]/85 px-5 pb-7 pt-5 backdrop-blur-[20px] backdrop-saturate-[180%]"
+      >
         {/* Logo */}
         <div className="flex items-center">
           <img
@@ -147,12 +155,12 @@ export default function HomeTab({ onNavigateTab }: HomeTabProps) {
         </motion.button>
       </header>
 
-      {/* 2. Título Principal (Large Title iOS) */}
+      {/* 2. Título Principal */}
       <motion.div
         initial={{ opacity: 0, y: 10 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.32, ease: iosEase }}
-        className="mb-5 mt-3 px-5"
+        className="mb-5 mt-1 px-5"
       >
         <p className="mb-1 text-[13px] font-semibold text-[#AEAEB2]">
           {t.greeting}

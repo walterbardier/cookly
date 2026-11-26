@@ -1,17 +1,20 @@
 import { useEffect, useState, useRef } from 'react';
-import RecipeModal from "./RecipeModal";
-import UserProfile from "./UserProfile";
-import CommentsModal from "./CommentsModal"; // <-- Nuevo componente de comentarios
+import { motion, AnimatePresence } from 'framer-motion';
+import RecipeModal from './RecipeModal';
+import UserProfile from './UserProfile';
+import CommentsModal from './CommentsModal';
 
-import { CATEGORIES } from "../data/mockData";
+import { CATEGORIES } from '../data/mockData';
 import type { Recipe } from '../data/mockData';
 
 import { useLanguage } from '../context/LanguageContext';
 import { translations } from '../utils/translations';
 
-import { useLikes } from "../context/LikesContext";
-import { supabase } from "../lib/supabase";
-import { useAuth } from "../context/AuthContext";
+import { useLikes } from '../context/LikesContext';
+import { supabase } from '../lib/supabase';
+import { useAuth } from '../context/AuthContext';
+
+const iosEase = [0.22, 1, 0.36, 1] as const;
 
 export default function FriendsTab() {
   const { language } = useLanguage();
@@ -20,8 +23,12 @@ export default function FriendsTab() {
   const { user } = useAuth();
   const [openRecipe, setOpenRecipe] = useState<Recipe | null>(null);
   const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
-  const [openCommentsRecipe, setOpenCommentsRecipe] = useState<Recipe | null>(null); // <-- Estado para el modal de comentarios
-  
+  const [openCommentsRecipe, setOpenCommentsRecipe] = useState<Recipe | null>(null);
+
+  // Modal y buscador para agregar/seguir usuarios desde el botón redondo superior derecho
+  const [showAddFriendModal, setShowAddFriendModal] = useState(false);
+  const [friendSearchQuery, setFriendSearchQuery] = useState('');
+
   const [users, setUsers] = useState<any[]>([]);
   const [recipes, setRecipes] = useState<any[]>([]);
   const [following, setFollowing] = useState<string[]>([]);
@@ -34,12 +41,7 @@ export default function FriendsTab() {
 
   const isThumbDragging = useRef(false);
 
-  const {
-    initializeLikes,
-    getLikes,
-    isLiked,
-    toggleLike,
-  } = useLikes();
+  const { initializeLikes, getLikes, isLiked, toggleLike } = useLikes();
 
   useEffect(() => {
     loadFriends();
@@ -101,9 +103,9 @@ export default function FriendsTab() {
 
     // 1. Cargar usuarios (excluyendo al usuario actual)
     const { data: profiles, error: profilesError } = await supabase
-      .from("profiles")
-      .select("*")
-      .neq("id", user.id);
+      .from('profiles')
+      .select('*')
+      .neq('id', user.id);
 
     if (profilesError) {
       console.log(profilesError);
@@ -112,7 +114,7 @@ export default function FriendsTab() {
 
     // 2. Cargar recetas públicas de otros usuarios
     const { data: recipeData, error: recipeError } = await supabase
-      .from("recipes")
+      .from('recipes')
       .select(`
         *,
         author:profiles!recipes_author_id_fkey(
@@ -122,232 +124,213 @@ export default function FriendsTab() {
           avatar
         )
       `)
-      .neq("author_id", user.id)
-      .neq("is_public", false)
-      .order("created_at", { ascending: false });
+      .neq('author_id', user.id)
+      .neq('is_public', false)
+      .order('created_at', { ascending: false });
 
     if (recipeError) {
       console.log(recipeError);
       return;
     }
-    
+
     setRecipes(recipeData ?? []);
 
     initializeLikes(
-      (recipeData ?? []).map(recipe => ({
+      (recipeData ?? []).map((recipe) => ({
         id: recipe.id,
         likes: recipe.likes,
       }))
     );
 
     // 3. Mapear perfiles calculando cuántas recetas públicas pertenecen a cada author_id
-    const profilesWithCounts = (profiles ?? []).map(profile => ({
+    const profilesWithCounts = (profiles ?? []).map((profile) => ({
       ...profile,
-      recipesCount: recipeData?.filter(
-        recipe => recipe.author_id === profile.id
-      ).length ?? 0,
+      recipesCount:
+        recipeData?.filter((recipe) => recipe.author_id === profile.id).length ?? 0,
     }));
 
     setUsers(profilesWithCounts);
 
     // 4. Cargar a qué usuarios sigue el usuario actual
     const { data: follows } = await supabase
-      .from("follows")
-      .select("following_id")
-      .eq("follower_id", user.id);
+      .from('follows')
+      .select('following_id')
+      .eq('follower_id', user.id);
 
-    setFollowing(
-      follows?.map(f => f.following_id) ?? []
-    );
+    setFollowing(follows?.map((f) => f.following_id) ?? []);
   }
 
   async function toggleFollow(id: string) {
-    if (!user) return;
+    if (!user || !id) return;
 
     const exists = following.includes(id);
 
     if (exists) {
       await supabase
-        .from("follows")
+        .from('follows')
         .delete()
-        .eq("follower_id", user.id)
-        .eq("following_id", id);
+        .eq('follower_id', user.id)
+        .eq('following_id', id);
 
-      setFollowing(prev =>
-        prev.filter(x => x !== id)
-      );
+      setFollowing((prev) => prev.filter((x) => x !== id));
     } else {
-      await supabase
-        .from("follows")
-        .insert({
-          follower_id: user.id,
-          following_id: id
-        });
+      await supabase.from('follows').insert({
+        follower_id: user.id,
+        following_id: id,
+      });
 
-      setFollowing(prev => [
-        ...prev,
-        id
-      ]);
+      setFollowing((prev) => [...prev, id]);
     }
   }
 
   const suggestions = users;
 
-  const followingRecipes = recipes.filter(recipe =>
-    following.includes(recipe.author?.id) && recipe.is_public !== false
+  const filteredAddUsers = users.filter((u) => {
+    const query = friendSearchQuery.trim().toLowerCase().replace(/^@/, '');
+    if (!query) return true;
+    const nameMatch = (u.name || '').toLowerCase().includes(query);
+    const usernameMatch = (u.username || '').toLowerCase().includes(query);
+    return nameMatch || usernameMatch;
+  });
+
+  const followingRecipes = recipes.filter(
+    (recipe) => following.includes(recipe.author?.id) && recipe.is_public !== false
   );
 
   return (
-    <div style={{ background: '#F2F2F7', minHeight: '100vh', paddingBottom: 100 }}>
+    <div className="min-h-screen select-none bg-[#F2F2F7] pb-[100px]">
       {/* Header */}
-      <div style={{
-        background: 'rgba(242,242,247,0.85)',
-        backdropFilter: 'blur(5px)',
-        WebkitBackdropFilter: 'blur(20px)',
-        position: 'sticky', top: 0, zIndex: 30,
-        paddingTop: 'env(safe-area-inset-top, 44px)',
-      }}
-      className='mt-4'>
-        <div style={{ padding: '14px 20px 12px', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end' }}>
-          <h1 className="text-3xl font-extrabold text-zinc-900">
+      <header className="sticky top-0 z-30 mt-4 select-none border-b-[0.5px] border-black/[0.04] bg-[#F2F2F7]/85 pt-[env(safe-area-inset-top,44px)] backdrop-blur-[20px] backdrop-saturate-[180%]">
+        <div className="flex items-end justify-between px-5 pb-3 pt-3.5">
+          <h1 className="m-0 select-none text-3xl font-extrabold tracking-[-0.5px] text-zinc-900">
             {t.title}
           </h1>
 
-          <button style={{
-            width: 36, height: 36, borderRadius: 12, background: 'white',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
-          }}>
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#1C1C1E" strokeWidth="2" strokeLinecap="round">
-              <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
+          {/* Botón redondo arriba a la derecha para agregar usuario */}
+          <motion.button
+            type="button"
+            aria-label="Add user"
+            whileHover={{ scale: 1.05, y: -1 }}
+            whileTap={{ scale: 0.92 }}
+            transition={{ type: 'spring', stiffness: 460, damping: 28 }}
+            onClick={() => setShowAddFriendModal(true)}
+            className="flex h-10 w-10 cursor-pointer select-none items-center justify-center rounded-full border-none bg-white shadow-[0_2px_8px_rgba(0,0,0,0.06)] transition-shadow duration-200 hover:shadow-[0_6px_16px_rgba(0,0,0,0.09)]"
+          >
+            <svg
+              width="18"
+              height="18"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="#1C1C1E"
+              strokeWidth="2.2"
+              strokeLinecap="round"
+            >
+              <line x1="12" y1="5" x2="12" y2="19" />
+              <line x1="5" y1="12" x2="19" y2="12" />
             </svg>
-          </button>
+          </motion.button>
         </div>
-      </div>
+      </header>
 
-      <div style={{ padding: '16px 0' }}>
+      <div className="select-none py-4">
         {/* Suggestions */}
         {suggestions.length > 0 && (
-          <section style={{ marginBottom: 24 }}>
-            <div style={{ padding: '0 20px', marginBottom: 12 }}>
-              <h2 style={{ fontSize: 18, fontWeight: 800, color: '#1C1C1E' }}>{t.suggestions}</h2>
+          <section className="mb-6">
+            <div className="mb-2 px-5">
+              <h2 className="m-0 text-[18px] font-extrabold tracking-[-0.3px] text-[#1C1C1E]">
+                {t.suggestions}
+              </h2>
             </div>
-            
-            {/* Contenedor sin cursor grab (scroll normal por trackpad/mouse wheel o tocando la barra) */}
-            <div 
+
+            <div
               ref={scrollRef}
               onScroll={handleScroll}
-              style={{ 
-                display: 'flex', 
-                gap: 12, 
-                overflowX: 'auto', 
-                paddingLeft: 20, 
-                paddingRight: 20, 
-                scrollbarWidth: 'none',
-              }}
+              className="flex gap-3 overflow-x-auto px-5 py-2.5 [scrollbar-width:none]"
             >
-              {suggestions.map(u => (
-                <div 
+              {suggestions.map((u, index) => (
+                <motion.div
                   key={u.id}
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{
+                    duration: 0.28,
+                    ease: iosEase,
+                    delay: Math.min(index * 0.04, 0.2),
+                  }}
+                  whileHover={{ y: -2, scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
                   onClick={() => setSelectedUserId(u.id)}
-                  className="
-                    w-40 shrink-0
-                    bg-white
-                    rounded-3xl
-                    p-4
-                    text-center
-                    shadow-[0_2px_8px_rgba(0,0,0,0.05)]
-                    flex
-                    flex-col
-                    items-center
-                    cursor-pointer
-                    transition-transform
-                    hover:scale-[1.02]
-                  "
+                  className="flex w-40 shrink-0 cursor-pointer select-none flex-col items-center rounded-3xl bg-white p-4 text-center shadow-[0_2px_8px_rgba(0,0,0,0.05)] transition-shadow duration-200 hover:shadow-[0_10px_22px_rgba(0,0,0,0.08)]"
                 >
                   {u.avatar ? (
-                    <img src={u.avatar} alt={u.name} className="w-14 h-14 rounded-full object-cover mb-2 pointer-events-none"/>
+                    <img
+                      src={u.avatar}
+                      alt={u.name}
+                      draggable={false}
+                      onContextMenu={(e) => e.preventDefault()}
+                      className="pointer-events-none mb-2 h-14 w-14 select-none rounded-full object-cover"
+                    />
                   ) : (
-                    <div className="w-14 h-14 rounded-full bg-[#E5E5EA] flex items-center justify-center mb-2">
-                      <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#8E8E93" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                        <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
-                        <circle cx="12" cy="7" r="4"/>
+                    <div className="mb-2 flex h-14 w-14 items-center justify-center rounded-full bg-[#E5E5EA]">
+                      <svg
+                        width="26"
+                        height="26"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="#8E8E93"
+                        strokeWidth="2"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                      >
+                        <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+                        <circle cx="12" cy="7" r="4" />
                       </svg>
                     </div>
                   )}
 
-                  <p style={{ fontSize: 13, fontWeight: 800, color: '#1C1C1E', marginBottom: 2 }}>{u.name}</p>
+                  <p className="m-0 mb-0.5 text-[13px] font-extrabold text-[#1C1C1E]">
+                    {u.name}
+                  </p>
 
-                  <p style={{ fontSize: 11, color: '#AEAEB2', fontWeight: 600, marginBottom: 4 }}>@{u.username}</p>
+                  <p className="m-0 mb-1 text-[11px] font-semibold text-[#AEAEB2]">
+                    @{u.username}
+                  </p>
 
-                  <p style={{ fontSize: 11, color: '#636366', marginBottom: 12 }}>
+                  <p className="m-0 mb-3 text-[11px] text-[#636366]">
                     {u.recipesCount} {t.recipes}
                   </p>
-                  
+
                   <button
+                    type="button"
                     onClick={(e) => {
                       e.stopPropagation();
                       toggleFollow(u.id);
                     }}
-                    className={`
-                      w-full py-2 rounded-4xl
-                      text-xs font-extrabold
-                      transition-all duration-300 ease-out
-                      active:scale-95
-                      ${
-                        following.includes(u.id)
-                          ? `
-                            bg-[#F2F2F7]
-                            text-[#636366]
-                            shadow-none
-                            hover:bg-[#E5E5EA]
-                          `
-                          : `
-                            bg-gradient-to-br from-[#FF6B35] to-[#FF9A5C]
-                            text-white
-                            shadow-[0_4px_12px_rgba(255,107,53,0.35)]
-                            hover:shadow-[0_8px_20px_rgba(255,107,53,0.45)]
-                            hover:scale-[1.03]
-                          `
-                      }
-                    `}
+                    className={`w-full cursor-pointer select-none rounded-full border-none py-2 text-xs font-extrabold transition-all duration-200 ease-out active:scale-95 ${
+                      following.includes(u.id)
+                        ? 'bg-[#F2F2F7] text-[#636366] shadow-none hover:bg-[#E5E5EA]'
+                        : 'bg-gradient-to-br from-[#FF6B35] to-[#FF9A5C] text-white shadow-[0_4px_12px_rgba(255,107,53,0.35)] hover:scale-[1.03] hover:shadow-[0_8px_20px_rgba(255,107,53,0.45)]'
+                    }`}
                   >
-                    {following.includes(u.id)
-                      ? t.following
-                      : t.follow
-                    }
+                    {following.includes(u.id) ? t.following : t.follow}
                   </button>
-                </div>
+                </motion.div>
               ))}
             </div>
 
-            {/* Barra de desplazamiento horizontal con cursor de manito exclusivo */}
-            <div style={{ padding: '0 20px', marginTop: 12 }}>
-              <div 
+            {/* Barra de desplazamiento horizontal */}
+            <div className="mt-2 px-5">
+              <div
                 ref={trackRef}
                 onMouseDown={handleTrackMouseDown}
-                style={{
-                  width: '100%',
-                  height: 6,
-                  background: '#E5E5EA',
-                  borderRadius: 3,
-                  overflow: 'hidden',
-                  position: 'relative',
-                  cursor: 'grab',
-                  userSelect: 'none',
-                }}
-                className="active:cursor-grabbing"
+                className="relative h-1.5 w-full cursor-grab select-none overflow-hidden rounded-[3px] bg-[#E5E5EA] active:cursor-grabbing"
               >
-                <div style={{
-                  width: `${thumbWidth}%`,
-                  height: '100%',
-                  background: '#FF6B35',
-                  borderRadius: 3,
-                  position: 'absolute',
-                  left: `${thumbLeft}%`,
-                  cursor: 'grab',
-                }}
-                className="active:cursor-grabbing"
+                <div
+                  style={{
+                    width: `${thumbWidth}%`,
+                    left: `${thumbLeft}%`,
+                  }}
+                  className="absolute top-0 h-full cursor-grab rounded-[3px] bg-[#FF6B35] active:cursor-grabbing"
                 />
               </div>
             </div>
@@ -356,155 +339,354 @@ export default function FriendsTab() {
 
         {/* Following feed */}
         <section>
-          <div style={{ padding: '0 20px', marginBottom: 12 }}>
-            <h2 style={{ fontSize: 18, fontWeight: 800, color: '#1C1C1E' }}>{t.recentActivity}</h2>
+          <div className="mb-3 px-5">
+            <h2 className="m-0 text-[18px] font-extrabold tracking-[-0.3px] text-[#1C1C1E]">
+              {t.recentActivity}
+            </h2>
           </div>
-          {
-            followingRecipes.length === 0 ? (
-              <div style={{
-                height: 220,
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                textAlign: 'center',
-                padding: '0 40px'
-              }}>
-                <p style={{
-                  color: '#8E8E93',
-                  fontSize: 15,
-                  fontWeight: 600,
-                  lineHeight: 1.4
-                }}>
-                  {t.emptyActivity}
-                </p>
-              </div>
-            ) : (
-              <div style={{ 
-                display: 'flex', 
-                flexDirection: 'column', 
-                gap: 16, 
-                padding: '0 20px' 
-              }}>
-                {followingRecipes.map(recipe => {
-                  const category = CATEGORIES.find(c => c.id === recipe.category);
 
-                  return (
-                    <div key={recipe.id} style={{
-                      background: 'white',
-                      borderRadius: 24,
-                      overflow: 'hidden',
-                      boxShadow: '0 2px 8px rgba(0,0,0,0.05)',
-                    }}>
-                      {/* Post header */}
-                      <div 
-                        onClick={() => recipe.author?.id && setSelectedUserId(recipe.author.id)}
-                        style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 16px 10px', cursor: 'pointer' }}
-                      >
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                          {recipe.author?.avatar ? (
-                            <img src={recipe.author.avatar} alt={recipe.author?.name}
-                              style={{ width: 38, height: 38, borderRadius: '50%', objectFit: 'cover' }} />
-                          ) : (
-                            <div style={{ width: 38, height: 38, borderRadius: '50%', background: '#E5E5EA', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#8E8E93" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                                <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
-                                <circle cx="12" cy="7" r="4"/>
-                              </svg>
-                            </div>
-                          )}
-                          <div>
-                            <p style={{ fontSize: 14, fontWeight: 800, color: '#1C1C1E' }}>{recipe.author?.name}</p>
-                            <p style={{ fontSize: 11, color: '#AEAEB2', fontWeight: 600 }}>@{recipe.author?.username}</p>
+          {followingRecipes.length === 0 ? (
+            <div className="flex h-[220px] items-center justify-center px-10 text-center">
+              <p className="m-0 text-[15px] font-semibold leading-[1.4] text-[#8E8E93]">
+                {t.emptyActivity}
+              </p>
+            </div>
+          ) : (
+            <div className="flex flex-col gap-4 px-5">
+              {followingRecipes.map((recipe, index) => {
+                const category = CATEGORIES.find((c) => c.id === recipe.category);
+                const isFollowingAuthor = following.includes(recipe.author?.id);
+
+                return (
+                  <motion.article
+                    key={recipe.id}
+                    initial={{ opacity: 0, y: 12 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{
+                      duration: 0.3,
+                      ease: iosEase,
+                      delay: Math.min(index * 0.05, 0.2),
+                    }}
+                    className="select-none overflow-hidden rounded-[24px] bg-white shadow-[0_2px_8px_rgba(0,0,0,0.05)] transition-shadow duration-200 hover:shadow-[0_8px_22px_rgba(0,0,0,0.07)]"
+                  >
+                    {/* Post header */}
+                    <div
+                      onClick={() =>
+                        recipe.author?.id && setSelectedUserId(recipe.author.id)
+                      }
+                      className="flex cursor-pointer items-center justify-between px-4 pb-2.5 pt-3.5"
+                    >
+                      <div className="flex items-center gap-2.5">
+                        {recipe.author?.avatar ? (
+                          <img
+                            src={recipe.author.avatar}
+                            alt={recipe.author?.name}
+                            draggable={false}
+                            onContextMenu={(e) => e.preventDefault()}
+                            className="pointer-events-none h-[38px] w-[38px] select-none rounded-full object-cover"
+                          />
+                        ) : (
+                          <div className="flex h-[38px] w-[38px] items-center justify-center rounded-full bg-[#E5E5EA]">
+                            <svg
+                              width="20"
+                              height="20"
+                              viewBox="0 0 24 24"
+                              fill="none"
+                              stroke="#8E8E93"
+                              strokeWidth="2"
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                            >
+                              <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+                              <circle cx="12" cy="7" r="4" />
+                            </svg>
                           </div>
+                        )}
+
+                        <div>
+                          <p className="m-0 text-sm font-extrabold text-[#1C1C1E]">
+                            {recipe.author?.name}
+                          </p>
+                          <p className="m-0 text-[11px] font-semibold text-[#AEAEB2]">
+                            @{recipe.author?.username}
+                          </p>
                         </div>
+                      </div>
+
+                      <motion.button
+                        type="button"
+                        whileTap={{ scale: 0.94 }}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          toggleFollow(recipe.author?.id);
+                        }}
+                        className={`cursor-pointer select-none rounded-[10px] border-none px-3.5 py-1.5 text-xs font-extrabold transition-all duration-200 hover:-translate-y-0.5 ${
+                          isFollowingAuthor
+                            ? 'bg-[#F2F2F7] text-[#636366] shadow-none hover:bg-[#E5E5EA]'
+                            : 'bg-gradient-to-br from-[#FF6B35] to-[#FF9A5C] text-white shadow-[0_4px_12px_rgba(255,107,53,0.35)]'
+                        }`}
+                      >
+                        {isFollowingAuthor ? t.following : t.follow}
+                      </motion.button>
+                    </div>
+
+                    {/* Recipe image */}
+                    <button
+                      type="button"
+                      onClick={() => setOpenRecipe(recipe)}
+                      className="block w-full cursor-pointer select-none border-none bg-transparent p-0"
+                    >
+                      <div className="relative h-[200px] overflow-hidden bg-[#F2F2F7]">
+                        <img
+                          src={recipe.image}
+                          alt={recipe.title}
+                          draggable={false}
+                          onContextMenu={(e) => e.preventDefault()}
+                          className="pointer-events-none h-full w-full select-none object-cover transition-transform duration-300 ease-out hover:scale-[1.02]"
+                        />
+                        {category && (
+                          <div
+                            style={{ backgroundColor: category.bgColor }}
+                            className="absolute bottom-2.5 left-3 flex items-center gap-1 rounded-[16px] px-2.5 py-1"
+                          >
+                            <span className="text-xs">{category.emoji}</span>
+                            <span
+                              style={{ color: category.color }}
+                              className="text-[10px] font-bold"
+                            >
+                              {category.name[language]}
+                            </span>
+                          </div>
+                        )}
+                      </div>
+                    </button>
+
+                    {/* Post footer */}
+                    <div className="px-4 pb-3.5 pt-3">
+                      <p className="m-0 mb-1 text-[15px] font-extrabold text-[#1C1C1E]">
+                        {recipe.title}
+                      </p>
+                      <p className="m-0 mb-3 text-[13px] text-[#636366]">
+                        {recipe.description && recipe.description.length > 60
+                          ? `${recipe.description.slice(0, 60)}…`
+                          : recipe.description}
+                      </p>
+
+                      <div className="flex items-center gap-4">
+                        <LikeButton
+                          liked={isLiked(recipe.id)}
+                          count={getLikes(recipe.id)}
+                          onClick={() => toggleLike(recipe.id)}
+                        />
+
                         <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            toggleFollow(recipe.author?.id);
-                          }}
-                          style={{
-                            padding: '6px 14px', borderRadius: 10,
-                            fontSize: 12, fontWeight: 800,
-                            background: following.includes(recipe.author?.id) ? '#F2F2F7' : 'linear-gradient(135deg, #FF6B35, #FF9A5C)',
-                            color: following.includes(recipe.author?.id) ? '#636366' : 'white',
-                            boxShadow: following.includes(recipe.author?.id) ? 'none' : '0 4px 12px rgba(255,107,53,0.35)',
-                            transition: 'all 0.2s ease',
-                          }}
+                          type="button"
+                          onClick={() => setOpenCommentsRecipe(recipe)}
+                          className="flex cursor-pointer select-none items-center gap-1.5 border-none bg-transparent p-0 text-[#AEAEB2] transition-colors duration-200 hover:text-[#1C1C1E]"
                         >
-                          {following.includes(recipe.author?.id) ? t.following : t.follow}
+                          <svg
+                            width="16"
+                            height="16"
+                            viewBox="0 0 24 24"
+                            fill="none"
+                            stroke="currentColor"
+                            strokeWidth="2"
+                            strokeLinecap="round"
+                          >
+                            <path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z" />
+                          </svg>
+                          <span className="text-[13px] font-semibold">
+                            {t.comment}
+                          </span>
+                        </button>
+
+                        <button
+                          type="button"
+                          className="flex cursor-pointer select-none items-center gap-1.5 border-none bg-transparent p-0 text-[#AEAEB2] transition-colors duration-200 hover:text-[#1C1C1E]"
+                        >
+                          <svg
+                            width="16"
+                            height="16"
+                            viewBox="0 0 24 24"
+                            fill="none"
+                            stroke="currentColor"
+                            strokeWidth="2"
+                            strokeLinecap="round"
+                          >
+                            <circle cx="18" cy="5" r="3" />
+                            <circle cx="6" cy="12" r="3" />
+                            <circle cx="18" cy="19" r="3" />
+                            <line x1="8.59" y1="13.51" x2="15.42" y2="17.49" />
+                            <line x1="15.41" y1="6.51" x2="8.59" y2="10.49" />
+                          </svg>
+                          <span className="text-[13px] font-semibold">
+                            {t.share}
+                          </span>
                         </button>
                       </div>
-    
-                      {/* Recipe image */}
-                      <button onClick={() => setOpenRecipe(recipe)} style={{ display: 'block', width: '100%', border: 'none', background: 'none', padding: 0, cursor: 'pointer' }}>
-                        <div style={{ height: 200, background: '#F2F2F7', position: 'relative' }}>
-                          <img src={recipe.image} alt={recipe.title}
-                            style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                          <div style={{
-                            position: 'absolute', bottom: 10, left: 12,
-                            background: category?.bgColor, borderRadius: 16, padding: '4px 10px',
-                            display: 'flex', alignItems: 'center', gap: 4,
-                          }}>
-                            <span style={{ fontSize: 12 }}>{category?.emoji}</span>
-                            <span style={{ fontSize: 10, fontWeight: 700, color: category?.color }}>{category?.name[language]}</span>
-                          </div>
-                        </div>
-                      </button>
-    
-                      {/* Post footer */}
-                      <div style={{ padding: '12px 16px 14px' }}>
-                        <p style={{ fontSize: 15, fontWeight: 800, color: '#1C1C1E', marginBottom: 4 }}>{recipe.title}</p>
-                        <p style={{ fontSize: 13, color: '#636366', marginBottom: 12 }}>
-                          {recipe.description && recipe.description.length > 60 ? recipe.description.slice(0, 60) + '…' : recipe.description}
-                        </p>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
-                          <LikeButton
-                            liked={isLiked(recipe.id)}
-                            count={getLikes(recipe.id)}
-                            onClick={() => toggleLike(recipe.id)}
-                          />
-                          
-                          {/* Botón Comentar conectado al modal interactivo */}
-                          <div 
-                            onClick={() => setOpenCommentsRecipe(recipe)}
-                            style={{ display: 'flex', alignItems: 'center', gap: 5, color: '#AEAEB2', cursor: 'pointer' }}
-                          >
-                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
-                              <path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/>
-                            </svg>
-                            <span style={{ fontSize: 13, fontWeight: 600 }}>{t.comment}</span>
-                          </div>
-
-                          <div style={{ display: 'flex', alignItems: 'center', gap: 5, color: '#AEAEB2' }}>
-                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
-                              <circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/>
-                              <line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/>
-                              <line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/>
-                            </svg>
-                            <span style={{ fontSize: 13, fontWeight: 600 }}>{t.share}</span>
-                          </div>
-                        </div>
-                      </div>
                     </div>
-                  );
-                })}
-              </div>
-            )
-          }
+                  </motion.article>
+                );
+              })}
+            </div>
+          )}
         </section>
       </div>
 
-      {openRecipe && <RecipeModal recipe={openRecipe} onClose={() => setOpenRecipe(null)} />}
-      
-      {/* Modal / Vista de Perfil de Usuario */}
-      {selectedUserId && (
-        <UserProfile userId={selectedUserId} onClose={() => { setSelectedUserId(null); loadFriends(); }} />
-      )}
+      {/* Modal para buscar y agregar usuarios */}
+      <AnimatePresence>
+        {showAddFriendModal && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.2, ease: iosEase }}
+            onClick={() => {
+              setShowAddFriendModal(false);
+              setFriendSearchQuery('');
+            }}
+            className="fixed inset-0 z-[100] flex select-none items-end justify-center bg-black/45 backdrop-blur-[4px] sm:items-center sm:p-5"
+          >
+            <motion.div
+              onClick={(e) => e.stopPropagation()}
+              initial={{ y: '100%' }}
+              animate={{ y: 0 }}
+              exit={{ y: '100%' }}
+              transition={{ type: 'spring', stiffness: 280, damping: 28 }}
+              className="flex max-h-[82vh] w-full max-w-[440px] select-none flex-col overflow-hidden rounded-t-[28px] bg-white p-5 shadow-[0_-12px_40px_rgba(0,0,0,0.16)] sm:rounded-[28px]"
+            >
+              <div className="mb-4 flex items-center justify-between">
+                <h2 className="m-0 text-[18px] font-extrabold tracking-[-0.3px] text-[#1C1C1E]">
+                  {t.suggestions}
+                </h2>
+                <motion.button
+                  type="button"
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.9 }}
+                  onClick={() => {
+                    setShowAddFriendModal(false);
+                    setFriendSearchQuery('');
+                  }}
+                  className="flex h-8 w-8 cursor-pointer select-none items-center justify-center rounded-full border-none bg-[#F2F2F7] text-xs font-bold text-[#636366] transition-colors duration-200 hover:bg-[#E5E5EA]"
+                >
+                  ✕
+                </motion.button>
+              </div>
 
-      {/* Modal de Comentarios Interactivos */}
-      {openCommentsRecipe && (
-        <CommentsModal recipe={openCommentsRecipe} onClose={() => setOpenCommentsRecipe(null)} />
-      )}
+              {/* Input para ingresar usuario */}
+              <div className="relative mb-4">
+                <input
+                  type="text"
+                  value={friendSearchQuery}
+                  onChange={(e) => setFriendSearchQuery(e.target.value)}
+                  placeholder="@usuario"
+                  autoFocus
+                  className="w-full select-none rounded-[14px] border border-[#E5E5EA] bg-[#F9F9FB] px-4 py-3 text-sm font-semibold text-[#1C1C1E] outline-none transition-all duration-200 focus:border-[1.5px] focus:border-[#FF6B35] focus:bg-[#FFFDFB] focus:shadow-[0_0_0_4px_rgba(255,107,53,0.12)]"
+                />
+              </div>
+
+              {/* Lista de usuarios encontrados */}
+              <div className="flex flex-col gap-2.5 overflow-y-auto pb-2">
+                {filteredAddUsers.length === 0 ? (
+                  <div className="py-8 text-center text-sm font-semibold text-[#8E8E93]">
+                    @{friendSearchQuery.trim().replace(/^@/, '')}
+                  </div>
+                ) : (
+                  filteredAddUsers.map((u) => {
+                    const isFollowingUser = following.includes(u.id);
+
+                    return (
+                      <div
+                        key={u.id}
+                        onClick={() => {
+                          setShowAddFriendModal(false);
+                          setFriendSearchQuery('');
+                          setSelectedUserId(u.id);
+                        }}
+                        className="flex cursor-pointer select-none items-center justify-between rounded-2xl bg-[#F7F7FA] p-3 transition-colors duration-200 hover:bg-[#EFEFF4]"
+                      >
+                        <div className="flex items-center gap-3">
+                          {u.avatar ? (
+                            <img
+                              src={u.avatar}
+                              alt={u.name}
+                              draggable={false}
+                              onContextMenu={(e) => e.preventDefault()}
+                              className="pointer-events-none h-11 w-11 select-none rounded-full object-cover"
+                            />
+                          ) : (
+                            <div className="flex h-11 w-11 items-center justify-center rounded-full bg-[#E5E5EA]">
+                              <svg
+                                width="22"
+                                height="22"
+                                viewBox="0 0 24 24"
+                                fill="none"
+                                stroke="#8E8E93"
+                                strokeWidth="2"
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                              >
+                                <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+                                <circle cx="12" cy="7" r="4" />
+                              </svg>
+                            </div>
+                          )}
+
+                          <div>
+                            <p className="m-0 text-sm font-extrabold text-[#1C1C1E]">
+                              {u.name}
+                            </p>
+                            <p className="m-0 text-xs font-semibold text-[#8E8E93]">
+                              @{u.username}
+                            </p>
+                          </div>
+                        </div>
+
+                        <motion.button
+                          type="button"
+                          whileTap={{ scale: 0.94 }}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            toggleFollow(u.id);
+                          }}
+                          className={`cursor-pointer select-none rounded-full border-none px-4 py-2 text-xs font-extrabold transition-all duration-200 ${
+                            isFollowingUser
+                              ? 'bg-[#E5E5EA] text-[#636366]'
+                              : 'bg-gradient-to-br from-[#FF6B35] to-[#FF9A5C] text-white shadow-[0_4px_12px_rgba(255,107,53,0.3)]'
+                          }`}
+                        >
+                          {isFollowingUser ? t.following : t.follow}
+                        </motion.button>
+                      </div>
+                    );
+                  })
+                )}
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+
+        {openRecipe && (
+          <RecipeModal recipe={openRecipe} onClose={() => setOpenRecipe(null)} />
+        )}
+
+        {selectedUserId && (
+          <UserProfile
+            userId={selectedUserId}
+            onClose={() => {
+              setSelectedUserId(null);
+              loadFriends();
+            }}
+          />
+        )}
+
+        {openCommentsRecipe && (
+          <CommentsModal
+            recipe={openCommentsRecipe}
+            onClose={() => setOpenCommentsRecipe(null)}
+          />
+        )}
+      </AnimatePresence>
     </div>
   );
 }
@@ -519,37 +701,31 @@ function LikeButton({
   onClick: () => void;
 }) {
   return (
-    <button
+    <motion.button
+      type="button"
+      whileTap={{ scale: 0.88 }}
       onClick={onClick}
-      style={{
-        display: "flex",
-        alignItems: "center",
-        gap: 5,
-        background: "none",
-        border: "none",
-        cursor: "pointer",
-      }}
+      className="flex cursor-pointer select-none items-center gap-[5px] border-none bg-transparent p-0"
     >
       <svg
         width="16"
         height="16"
         viewBox="0 0 24 24"
-        fill={liked ? "#FF2D55" : "none"}
-        stroke={liked ? "#FF2D55" : "#AEAEB2"}
+        fill={liked ? '#FF2D55' : 'none'}
+        stroke={liked ? '#FF2D55' : '#AEAEB2'}
         strokeWidth="2"
+        className="transition-colors duration-200"
       >
-        <path d="M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 000-7.78z"/>
+        <path d="M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 000-7.78z" />
       </svg>
 
       <span
-        style={{
-          fontSize: 13,
-          fontWeight: 600,
-          color: liked ? "#FF2D55" : "#AEAEB2",
-        }}
+        className={`text-[13px] font-semibold transition-colors duration-200 ${
+          liked ? 'text-[#FF2D55]' : 'text-[#AEAEB2]'
+        }`}
       >
         {count}
       </span>
-    </button>
+    </motion.button>
   );
 }
