@@ -148,15 +148,18 @@ export default function CommentsModal({
       transition={{ duration: 0.32, ease: iosEase }}
       className="fixed inset-0 z-[100] flex h-screen w-screen select-none flex-col overflow-hidden bg-white"
     >
-      {/* HEADER SUPERIOR LIMPIO + TARJETA COMPACTA CON FOTO OSCURA + FADE GRIS ABAJO */}
+      {/* HEADER SUPERIOR FLOTANTE SIN FONDO SÓLIDO, CON DEGRADADO SUAVE HACIA ABAJO */}
       <motion.div
         initial={{ opacity: 0, y: 8 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.34, ease: iosEase }}
-        className="relative shrink-0 bg-white/95 pb-6 pt-[env(safe-area-inset-top,44px)] backdrop-blur-xl"
+        className="pointer-events-none fixed left-0 right-0 top-0 z-20 flex flex-col pt-[env(safe-area-inset-top,44px)]"
       >
+        {/* Degradado superior suave hacia 0% de opacidad abajo */}
+        <div className="pointer-events-none absolute inset-x-0 top-0 h-[192px] bg-gradient-to-b from-white/100 via-white/70 to-white/80" />
+
         {/* Barra de navegación */}
-        <div className="flex items-center justify-between px-5 pb-3 pt-2">
+        <div className="pointer-events-auto relative z-10 flex items-center justify-between px-5 pb-3 pt-2">
           <h3 className="m-0 text-[22px] font-extrabold tracking-[-0.4px] text-[#1C1C1E]">
             {t.title}
           </h3>
@@ -166,15 +169,15 @@ export default function CommentsModal({
             whileHover={{ scale: 1.05 }}
             whileTap={{ scale: 0.92 }}
             onClick={onClose}
-            className="flex h-10 w-10 cursor-pointer select-none items-center justify-center rounded-full border-none bg-[#F2F2F7] text-sm font-extrabold text-[#1C1C1E] transition-colors duration-200 hover:bg-[#E5E5EA]"
+            className="flex h-10 w-10 cursor-pointer select-none items-center justify-center rounded-full border-none bg-white/90 text-sm font-extrabold text-[#1C1C1E] shadow-sm backdrop-blur-md transition-colors duration-200 hover:bg-white"
           >
             ✕
           </motion.button>
         </div>
 
-        {/* Hero / Preview compacto con foto un poco más oscura y degradado oscuro */}
-        <div className="relative z-10 px-4">
-          <div className="group/hero relative flex h-[132px] w-full flex-col justify-end overflow-hidden rounded-[24px] bg-zinc-900 shadow-[0_8px_22px_rgba(0,0,0,0.12)]">
+        {/* Hero / Preview flotando libremente */}
+        <div className="pointer-events-auto relative z-10 px-4">
+          <div className="group/hero relative flex h-[132px] w-full flex-col justify-end overflow-hidden rounded-[24px] bg-zinc-900 shadow-[0_10px_28px_rgba(0,0,0,0.14)]">
             <img
               src={recipe.image}
               alt={recipe.title}
@@ -183,7 +186,7 @@ export default function CommentsModal({
               className="pointer-events-none absolute inset-0 h-full w-full select-none object-cover opacity-60 transition-transform duration-500 ease-out group-hover/hero:scale-[1.03]"
             />
 
-            {/* Degradado oscuro marcado */}
+            {/* Degradado oscuro marcado dentro de la card */}
             <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/80 via-black/35 to-black/20" />
 
             {/* Info de usuario y título un poco más arriba */}
@@ -219,16 +222,16 @@ export default function CommentsModal({
           </div>
         </div>
 
-        {/* Fade gris debajo del card de la foto (gris arriba -> 0% opacidad abajo) */}
-        <div className="pointer-events-none absolute bottom-0 left-0 right-0 h-6 bg-gradient-to-b from-[#E5E5EA]/75 to-transparent" />
+        {/* Degradado suave debajo de la card hacia 0% de opacidad */}
+        <div className="pointer-events-none relative z-10 h-8 w-full bg-gradient-to-b from-white/70 via-white/30 to-transparent" />
       </motion.div>
 
-      {/* PARTE INFERIOR: LISTADO ESTILO X / TWITTER SEPARADO POR LÍNEA FINA */}
+      {/* PARTE INFERIOR: LISTADO ESTILO X / TWITTER PASANDO POR DEBAJO */}
       <motion.div
         initial={{ opacity: 0, y: 10 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.38, ease: iosEase, delay: 0.06 }}
-        className="flex-1 overflow-y-auto bg-white pb-28 pt-1"
+        className="h-full w-full overflow-y-auto bg-white pb-28 pt-[calc(env(safe-area-inset-top,44px)+210px)]"
       >
         {comments.length === 0 ? (
           <div className="flex h-full flex-col items-center justify-center px-6 text-center text-sm text-zinc-400">
