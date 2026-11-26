@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../context/AuthContext';
 import { CATEGORIES } from '../data/mockData';
@@ -8,6 +8,8 @@ import RecipeModal from './RecipeModal';
 import { useLanguage } from '../context/LanguageContext';
 import { useLikes } from '../context/LikesContext';
 import { translations } from '../utils/translations';
+
+const iosEase = [0.22, 1, 0.36, 1] as const;
 
 type Props = {
   userId: string;
@@ -107,24 +109,26 @@ export default function UserProfile({ userId, onClose }: Props) {
         .eq('following_id', userId);
 
       setIsFollowing(false);
-      setFollowersCount(prev => Math.max(0, prev - 1));
+      setFollowersCount((prev) => Math.max(0, prev - 1));
     } else {
-      await supabase
-        .from('follows')
-        .insert({
-          follower_id: currentUser.id,
-          following_id: userId,
-        });
+      await supabase.from('follows').insert({
+        follower_id: currentUser.id,
+        following_id: userId,
+      });
 
       setIsFollowing(true);
-      setFollowersCount(prev => prev + 1);
+      setFollowersCount((prev) => prev + 1);
     }
   };
 
   if (loading) {
     return (
-      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
-        <div className="w-12 h-12 rounded-full border-4 border-[#FF6B35] border-t-transparent animate-spin" />
+      <div className="fixed inset-0 z-[110] flex select-none items-center justify-center bg-black/40 backdrop-blur-[6px]">
+        <motion.div
+          animate={{ rotate: 360 }}
+          transition={{ repeat: Infinity, duration: 0.85, ease: 'linear' }}
+          className="h-10 w-10 rounded-full border-[3.5px] border-[#FF6B35]/20 border-t-[#FF6B35] border-r-[#FF9A5C] shadow-[0_4px_14px_rgba(255,107,53,0.25)]"
+        />
       </div>
     );
   }
@@ -136,371 +140,278 @@ export default function UserProfile({ userId, onClose }: Props) {
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
-      transition={{ duration: 0.25 }}
-      style={{
-        position: 'fixed',
-        inset: 0,
-        zIndex: 100,
-        background: 'rgba(0,0,0,0.5)',
-        display: 'flex',
-        justifyContent: 'center',
-        alignItems: 'flex-end',
-        paddingTop: '2vh',
-      }}
+      transition={{ duration: 0.24, ease: iosEase }}
       onClick={onClose}
+      className="fixed inset-0 z-[100] flex select-none items-end justify-center bg-black/50 pt-[2vh] backdrop-blur-[4px]"
     >
+      {/* Shell animada con borde redondeado estable */}
       <motion.div
         onClick={(e) => e.stopPropagation()}
         initial={{ y: '100%' }}
         animate={{ y: 0 }}
         exit={{ y: '100%' }}
-        transition={{ type: 'spring', stiffness: 220, damping: 26 }}
-        style={{
-          width: '100%',
-          maxWidth: 480,
-          height: '96vh',
-          maxHeight: '96vh',
-          background: '#F2F2F7',
-          borderRadius: '28px 28px 0 0',
-          overflowY: 'auto',
-          display: 'flex',
-          flexDirection: 'column',
-          paddingBottom: 40,
-        }}
+        transition={{ type: 'spring', stiffness: 260, damping: 28 }}
+        className="flex h-[96vh] max-h-[96vh] w-full max-w-[480px] select-none flex-col overflow-hidden rounded-t-[28px] bg-[#F2F2F7] shadow-[0_-12px_40px_rgba(0,0,0,0.16)]"
       >
-        {/* Header Sticky */}
-        <div
-          style={{
-            background: 'rgba(242,242,247,0.85)',
-            backdropFilter: 'blur(20px)',
-            position: 'sticky',
-            top: 0,
-            zIndex: 30,
-            padding: '16px 20px',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            borderBottom: '1px solid rgba(0,0,0,0.05)',
-          }}
-        >
-          <h2 style={{ fontSize: 18, fontWeight: 800, color: '#1C1C1E', margin: 0 }}>
-            {profile.name}
-          </h2>
-          <button
-            onClick={onClose}
+        {/* Contenedor scrolleable interno para que el hover/transform de hijos no rompa las esquinas */}
+        <div className="flex-1 overflow-y-auto pb-10">
+          {/* Header Sticky con degradé de desvanecimiento (100% arriba -> 0% abajo) */}
+          <header
             style={{
-              background: 'rgba(0,0,0,0.08)',
-              border: 'none',
-              borderRadius: '50%',
-              width: 32,
-              height: 32,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              cursor: 'pointer',
-              fontWeight: 700,
-              color: '#1C1C1E',
+              WebkitMaskImage:
+                'linear-gradient(to bottom, rgba(0,0,0,1) 0%, rgba(0,0,0,0.92) 64%, rgba(0,0,0,0) 100%)',
+              maskImage:
+                'linear-gradient(to bottom, rgba(0,0,0,1) 0%, rgba(0,0,0,0.92) 64%, rgba(0,0,0,0) 100%)',
             }}
+            className="sticky top-0 z-30 flex select-none items-center justify-between rounded-t-[28px] bg-[#F2F2F7]/85 px-5 pb-7 pt-4 backdrop-blur-[20px] backdrop-saturate-[180%]"
           >
-            ✕
-          </button>
-        </div>
+            <h2 className="m-0 text-[18px] font-extrabold tracking-[-0.3px] text-[#1C1C1E]">
+              {profile.name}
+            </h2>
 
-        <div style={{ padding: '16px 16px 0' }}>
-          {/* Tarjeta de Perfil principal con Banner limpio */}
-          <div
-            style={{
-              background: 'white',
-              borderRadius: 32,
-              overflow: 'hidden',
-              boxShadow: '0 10px 30px rgba(0,0,0,.06)',
-              marginBottom: 16,
-            }}
-          >
-            {/* Imagen del Banner */}
-            <div
-              style={{
-                width: '100%',
-                height: 130,
-                background: profile.banner 
-                  ? `url(${profile.banner}) center/cover no-repeat` 
-                  : 'linear-gradient(135deg, #FF6B35, #FF9A5C)',
-                position: 'relative',
-              }}
+            <motion.button
+              type="button"
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.9 }}
+              onClick={onClose}
+              className="flex h-8 w-8 cursor-pointer select-none items-center justify-center rounded-full border-none bg-black/[0.08] text-xs font-bold text-[#1C1C1E] transition-colors duration-200 hover:bg-black/[0.14]"
             >
-              <div
-                style={{
-                  position: 'absolute',
-                  bottom: 0,
-                  left: 0,
-                  right: 0,
-                  height: 24,
-                  background: 'linear-gradient(to top, rgba(0,0,0,0.15), transparent)',
-                }}
-              />
-            </div>
+              ✕
+            </motion.button>
+          </header>
 
-            {/* Contenido del Perfil */}
-            <div style={{ padding: '0 20px 24px', textAlign: 'center' }}>
-              {/* Avatar flotante sobre el banner */}
-              <div 
-                style={{ 
-                  display: 'flex', 
-                  justifyContent: 'center', 
-                  marginTop: '-46px', 
-                  marginBottom: 12, 
-                  position: 'relative', 
-                  zIndex: 2 
-                }}
-              >
-                {profile.avatar ? (
-                  <img
-                    src={profile.avatar}
-                    alt={profile.name}
-                    style={{
-                      width: 84,
-                      height: 84,
-                      borderRadius: '50%',
-                      objectFit: 'cover',
-                      border: '4px solid white',
-                      boxShadow: '0 8px 20px rgba(0,0,0,.15)',
-                    }}
-                  />
-                ) : (
-                  <div
-                    style={{
-                      width: 84,
-                      height: 84,
-                      borderRadius: '50%',
-                      background: '#E5E5EA',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      border: '4px solid white',
-                      boxShadow: '0 8px 20px rgba(0,0,0,.15)',
-                    }}
-                  >
-                    <svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="#8E8E93" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                      <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
-                      <circle cx="12" cy="7" r="4" />
-                    </svg>
-                  </div>
-                )}
-              </div>
-
-              <h1 style={{ fontSize: 22, fontWeight: 800, color: '#1C1C1E', marginBottom: 2 }}>
-                {profile.name}
-              </h1>
-              <p style={{ color: '#8E8E93', fontWeight: 600, fontSize: 13, marginBottom: 8 }}>
-                @{profile.username}
-              </p>
-              {profile.bio && (
-                <p
-                  style={{
-                    maxWidth: 300,
-                    margin: '0 auto 16px',
-                    fontSize: 13,
-                    lineHeight: 1.5,
-                    color: '#636366',
-                  }}
-                >
-                  {profile.bio}
-                </p>
-              )}
-
-              {/* Botón Seguir / Siguiendo */}
-              {currentUser && currentUser.id !== userId && (
-                <button
-                  onClick={toggleFollow}
-                  style={{
-                    width: '100%',
-                    padding: '12px 0',
-                    borderRadius: 20,
-                    fontWeight: 800,
-                    fontSize: 14,
-                    border: 'none',
-                    cursor: 'pointer',
-                    background: isFollowing
-                      ? '#E5E5EA'
-                      : 'linear-gradient(135deg, #FF6B35, #FF9A5C)',
-                    color: isFollowing ? '#1C1C1E' : 'white',
-                    boxShadow: isFollowing ? 'none' : '0 4px 14px rgba(255,107,53,0.35)',
-                    transition: 'all 0.2s ease',
-                    marginBottom: 16,
-                  }}
-                >
-                  {isFollowing ? t.friends.following : t.friends.follow}
-                </button>
-              )}
-
-              {/* Contadores */}
-              <div
-                style={{
-                  display: 'grid',
-                  gridTemplateColumns: 'repeat(3, 1fr)',
-                  gap: 8,
-                }}
-              >
-                {[
-                  { value: recipes.length, label: t.profile.recipesCount },
-                  { value: followersCount, label: t.profile.followers },
-                  { value: followingCount, label: t.profile.following },
-                ].map((stat) => (
-                  <div
-                    key={stat.label}
-                    style={{
-                      background: '#F7F7FA',
-                      borderRadius: 18,
-                      padding: '10px 4px',
-                      textAlign: 'center',
-                    }}
-                  >
-                    <div style={{ fontSize: 18, fontWeight: 800, color: '#1C1C1E' }}>
-                      {stat.value}
-                    </div>
-                    <div style={{ fontSize: 11, fontWeight: 600, color: '#8E8E93', marginTop: 2 }}>
-                      {stat.label}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
-
-          {/* Intereses */}
-          {profile.interests && profile.interests.length > 0 && (
-            <div
-              style={{
-                background: 'white',
-                borderRadius: 32,
-                padding: 20,
-                marginBottom: 16,
-                boxShadow: '0 10px 30px rgba(0,0,0,.06)',
-              }}
+          <div className="px-4 pt-1">
+            {/* Tarjeta de Perfil principal con Banner limpio */}
+            <motion.div
+              initial={{ opacity: 0, y: 12 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.3, ease: iosEase }}
+              className="mb-4 overflow-hidden rounded-[32px] bg-white shadow-[0_10px_30px_rgba(0,0,0,0.06)]"
             >
-              <p
-                style={{
-                  fontSize: 12,
-                  fontWeight: 800,
-                  color: '#8E8E93',
-                  textTransform: 'uppercase',
-                  letterSpacing: 0.5,
-                  marginBottom: 12,
-                }}
-              >
-                {t.profile.interests}
-              </p>
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
-                {profile.interests.map((catId: string) => {
-                  const cat = CATEGORIES.find((c) => c.id === catId);
-                  if (!cat) return null;
-                  return (
-                    <div
-                      key={cat.id}
-                      style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: 6,
-                        background: cat.bgColor,
-                        padding: '6px 12px',
-                        borderRadius: 20,
-                        border: `1.5px solid ${cat.color}33`,
-                      }}
-                    >
-                      <span>{cat.emoji}</span>
-                      <span style={{ fontSize: 12, fontWeight: 700, color: cat.color }}>
-                        {cat.name[language]}
-                      </span>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-          )}
-
-          {/* Recetas Públicas Grid */}
-          <div style={{ marginBottom: 20 }}>
-            <h3 style={{ fontSize: 18, fontWeight: 800, color: '#1C1C1E', marginBottom: 12, paddingLeft: 4 }}>
-              {t.profile.publicRecipes}
-            </h3>
-
-            {recipes.length === 0 ? (
-              <div style={{ textAlign: 'center', padding: '40px 0', background: 'white', borderRadius: 32 }}>
-                <div style={{ fontSize: 36, marginBottom: 8 }}>🍳</div>
-                <p style={{ fontSize: 14, fontWeight: 700, color: '#1C1C1E' }}>Sin recetas públicas</p>
-                <p style={{ fontSize: 12, color: '#8E8E93', marginTop: 2 }}>Este usuario aún no ha compartido recetas.</p>
-              </div>
-            ) : (
+              {/* Imagen del Banner */}
               <div
                 style={{
-                  display: 'grid',
-                  gridTemplateColumns: 'repeat(3, 1fr)',
-                  gap: 8,
-                  overflow: 'hidden',
-                  borderRadius: 24,
+                  background: profile.banner
+                    ? `url(${profile.banner}) center/cover no-repeat`
+                    : 'linear-gradient(135deg, #FF6B35, #FF9A5C)',
                 }}
+                className="relative h-[130px] w-full"
               >
-                {recipes.map((recipe) => (
-                  <button
-                    key={recipe.id}
-                    onClick={() => setOpenRecipe(recipe)}
-                    style={{
-                      position: 'relative',
-                      aspectRatio: '1',
-                      overflow: 'hidden',
-                      background: '#E5E5EA',
-                      border: 'none',
-                      padding: 0,
-                      cursor: 'pointer',
-                      borderRadius: 16,
-                    }}
-                  >
+                <div className="absolute bottom-0 left-0 right-0 h-6 bg-gradient-to-t from-black/15 to-transparent" />
+              </div>
+
+              {/* Contenido del Perfil */}
+              <div className="px-5 pb-6 text-center">
+                {/* Avatar flotante sobre el banner */}
+                <div className="relative z-[2] -mt-[46px] mb-3 flex justify-center">
+                  {profile.avatar ? (
                     <img
-                      src={recipe.image}
-                      alt={recipe.title}
-                      style={{
-                        width: '100%',
-                        height: '100%',
-                        objectFit: 'cover',
-                        transition: 'transform 0.2s ease',
-                      }}
+                      src={profile.avatar}
+                      alt={profile.name}
+                      draggable={false}
+                      onContextMenu={(e) => e.preventDefault()}
+                      className="pointer-events-none h-[84px] w-[84px] select-none rounded-full border-4 border-white object-cover shadow-[0_8px_20px_rgba(0,0,0,0.15)]"
                     />
+                  ) : (
+                    <div className="flex h-[84px] w-[84px] items-center justify-center rounded-full border-4 border-white bg-[#E5E5EA] shadow-[0_8px_20px_rgba(0,0,0,0.15)]">
+                      <svg
+                        width="34"
+                        height="34"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="#8E8E93"
+                        strokeWidth="2"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                      >
+                        <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+                        <circle cx="12" cy="7" r="4" />
+                      </svg>
+                    </div>
+                  )}
+                </div>
+
+                <h1 className="m-0 mb-0.5 text-[22px] font-extrabold tracking-[-0.4px] text-[#1C1C1E]">
+                  {profile.name}
+                </h1>
+                <p className="m-0 mb-2 text-[13px] font-semibold text-[#8E8E93]">
+                  @{profile.username}
+                </p>
+                {profile.bio && (
+                  <p className="mx-auto mb-4 max-w-[300px] text-[13px] leading-[1.5] text-[#636366]">
+                    {profile.bio}
+                  </p>
+                )}
+
+                {/* Botón Seguir / Siguiendo */}
+                {currentUser && currentUser.id !== userId && (
+                  <motion.button
+                    type="button"
+                    whileHover={{ y: -1 }}
+                    whileTap={{ scale: 0.97 }}
+                    onClick={toggleFollow}
+                    className={`mb-4 w-full cursor-pointer select-none rounded-[20px] border-none py-3 text-[14px] font-extrabold transition-all duration-200 ${
+                      isFollowing
+                        ? 'bg-[#E5E5EA] text-[#1C1C1E] shadow-none hover:bg-[#DCDCE2]'
+                        : 'bg-gradient-to-br from-[#FF6B35] to-[#FF9A5C] text-white shadow-[0_4px_14px_rgba(255,107,53,0.35)] hover:shadow-[0_8px_20px_rgba(255,107,53,0.42)]'
+                    }`}
+                  >
+                    {isFollowing ? t.friends.following : t.friends.follow}
+                  </motion.button>
+                )}
+
+                {/* Contadores */}
+                <div className="grid grid-cols-3 gap-2">
+                  {[
+                    { value: recipes.length, label: t.profile.recipesCount },
+                    { value: followersCount, label: t.profile.followers },
+                    { value: followingCount, label: t.profile.following },
+                  ].map((stat) => (
                     <div
-                      style={{
-                        position: 'absolute',
-                        inset: 0,
-                        background: 'linear-gradient(to top, rgba(0,0,0,0.7) 0%, transparent 50%)',
-                      }}
-                    />
-                    <p
-                      style={{
-                        position: 'absolute',
-                        bottom: 8,
-                        left: 8,
-                        right: 8,
-                        textAlign: 'left',
-                        fontSize: 11,
-                        fontWeight: 700,
-                        color: 'white',
-                        margin: 0,
-                        display: '-webkit-box',
-                        WebkitLineClamp: 2,
-                        WebkitBoxOrient: 'vertical',
-                        overflow: 'hidden',
-                      }}
+                      key={stat.label}
+                      className="rounded-[18px] bg-[#F7F7FA] px-1 py-2.5 text-center transition-transform duration-200 hover:-translate-y-0.5"
                     >
-                      {recipe.title}
-                    </p>
-                  </button>
-                ))}
+                      <div className="text-[18px] font-extrabold text-[#1C1C1E]">
+                        {stat.value}
+                      </div>
+                      <div className="mt-0.5 text-[11px] font-semibold text-[#8E8E93]">
+                        {stat.label}
+                      </div>
+                    </div>
+                  ))}
+                </div>
               </div>
+            </motion.div>
+
+            {/* Intereses */}
+            {profile.interests && profile.interests.length > 0 && (
+              <motion.div
+                initial={{ opacity: 0, y: 12 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.32, ease: iosEase, delay: 0.05 }}
+                className="mb-4 rounded-[32px] bg-white p-5 shadow-[0_10px_30px_rgba(0,0,0,0.06)]"
+              >
+                <p className="mb-3 mt-0 text-xs font-extrabold uppercase tracking-[0.5px] text-[#8E8E93]">
+                  {t.profile.interests}
+                </p>
+                <div className="flex flex-wrap gap-2">
+                  {profile.interests.map((catId: string) => {
+                    const cat = CATEGORIES.find((c) => c.id === catId);
+                    if (!cat) return null;
+                    return (
+                      <div
+                        key={cat.id}
+                        style={{
+                          backgroundColor: cat.bgColor,
+                          borderColor: `${cat.color}33`,
+                        }}
+                        className="flex items-center gap-1.5 rounded-[20px] border-[1.5px] px-3 py-1.5 transition-transform duration-200 hover:-translate-y-0.5"
+                      >
+                        <span>{cat.emoji}</span>
+                        <span
+                          style={{ color: cat.color }}
+                          className="text-xs font-bold"
+                        >
+                          {cat.name[language]}
+                        </span>
+                      </div>
+                    );
+                  })}
+                </div>
+              </motion.div>
             )}
+
+            {/* Recetas Públicas Listado / Grupo iOS */}
+            <div className="mb-5">
+              <h3 className="mb-3 mt-0 pl-1 text-[18px] font-extrabold tracking-[-0.3px] text-[#1C1C1E]">
+                {t.profile.publicRecipes}
+              </h3>
+
+              {recipes.length === 0 ? (
+                <div className="rounded-[32px] bg-white py-10 text-center shadow-[0_10px_30px_rgba(0,0,0,0.04)]">
+                  <div className="mb-2 text-[36px]">🍳</div>
+                  <p className="m-0 text-sm font-bold text-[#1C1C1E]">
+                    Sin recetas públicas
+                  </p>
+                  <p className="mt-0.5 text-xs text-[#8E8E93]">
+                    Este usuario aún no ha compartido recetas.
+                  </p>
+                </div>
+              ) : (
+                <div className="flex flex-col gap-[2px] overflow-hidden rounded-[24px] shadow-[0_10px_30px_rgba(0,0,0,0.05)]">
+                  {recipes.map((recipe, index) => {
+                    const isFirst = index === 0;
+                    const isLast = index === recipes.length - 1;
+                    const isSingle = recipes.length === 1;
+
+                    const itemRadiusClass = isSingle
+                      ? 'rounded-[24px]'
+                      : isFirst
+                        ? 'rounded-t-[24px] rounded-b-[6px]'
+                        : isLast
+                          ? 'rounded-t-[6px] rounded-b-[24px]'
+                          : 'rounded-[6px]';
+
+                    return (
+                      <motion.button
+                        key={recipe.id}
+                        type="button"
+                        whileHover={{ x: 2 }}
+                        whileTap={{ scale: 0.985 }}
+                        onClick={() => setOpenRecipe(recipe)}
+                        className={`group flex w-full cursor-pointer select-none items-center gap-3.5 border-none bg-white p-3 text-left transition-colors duration-200 hover:bg-[#FAFAFC] ${itemRadiusClass}`}
+                      >
+                        <div className="relative h-16 w-16 shrink-0 overflow-hidden rounded-[14px] bg-[#E5E5EA]">
+                          <img
+                            src={recipe.image}
+                            alt={recipe.title}
+                            draggable={false}
+                            onContextMenu={(e) => e.preventDefault()}
+                            className="pointer-events-none h-full w-full select-none object-cover transition-transform duration-200 ease-out group-hover:scale-105"
+                          />
+                        </div>
+
+                        <div className="min-w-0 flex-1">
+                          <p className="m-0 truncate text-[15px] font-extrabold text-[#1C1C1E]">
+                            {recipe.title}
+                          </p>
+                          {recipe.description && (
+                            <p className="m-0 mt-0.5 line-clamp-1 text-xs font-medium text-[#8E8E93]">
+                              {recipe.description}
+                            </p>
+                          )}
+                        </div>
+
+                        <svg
+                          width="16"
+                          height="16"
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          stroke="#C7C7CC"
+                          strokeWidth="2.2"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          className="shrink-0 transition-transform duration-200 group-hover:translate-x-0.5"
+                        >
+                          <polyline points="9 18 15 12 9 6" />
+                        </svg>
+                      </motion.button>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
           </div>
         </div>
 
-        {openRecipe && (
-          <RecipeModal recipe={openRecipe} onClose={() => setOpenRecipe(null)} />
-        )}
+        <AnimatePresence>
+          {openRecipe && (
+            <RecipeModal
+              recipe={openRecipe}
+              onClose={() => setOpenRecipe(null)}
+            />
+          )}
+        </AnimatePresence>
       </motion.div>
     </motion.div>
   );

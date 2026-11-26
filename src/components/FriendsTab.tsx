@@ -24,6 +24,7 @@ export default function FriendsTab() {
   const [openRecipe, setOpenRecipe] = useState<Recipe | null>(null);
   const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
   const [openCommentsRecipe, setOpenCommentsRecipe] = useState<Recipe | null>(null);
+  const [isScrolled, setIsScrolled] = useState(false);
 
   // Modal y buscador para agregar/seguir usuarios desde el botón redondo superior derecho
   const [showAddFriendModal, setShowAddFriendModal] = useState(false);
@@ -48,7 +49,13 @@ export default function FriendsTab() {
   }, [user]);
 
   useEffect(() => {
+    const handleWindowScroll = () => {
+      setIsScrolled(window.scrollY > 18);
+    };
+
+    window.addEventListener('scroll', handleWindowScroll, { passive: true });
     return () => {
+      window.removeEventListener('scroll', handleWindowScroll);
       window.removeEventListener('mousemove', handleWindowMouseMove);
       window.removeEventListener('mouseup', handleWindowMouseUp);
     };
@@ -199,12 +206,24 @@ export default function FriendsTab() {
 
   return (
     <div className="min-h-screen select-none bg-[#F2F2F7] pb-[100px]">
-      {/* Header */}
-      <header className="sticky top-0 z-30 mt-4 select-none border-b-[0.5px] border-black/[0.04] bg-[#F2F2F7]/85 pt-[env(safe-area-inset-top,44px)] backdrop-blur-[20px] backdrop-saturate-[180%]">
-        <div className="flex items-end justify-between px-5 pb-3 pt-3.5">
-          <h1 className="m-0 select-none text-3xl font-extrabold tracking-[-0.5px] text-zinc-900">
+      {/* Header fijo con degradé de desvanecimiento (100% arriba -> 0% abajo) */}
+      <header
+        style={{
+          WebkitMaskImage:
+            'linear-gradient(to bottom, rgba(0,0,0,1) 0%, rgba(0,0,0,0.92) 64%, rgba(0,0,0,0) 100%)',
+          maskImage:
+            'linear-gradient(to bottom, rgba(0,0,0,1) 0%, rgba(0,0,0,0.92) 64%, rgba(0,0,0,0) 100%)',
+        }}
+        className="sticky top-0 z-30 mt-4 select-none bg-[#F2F2F7]/85 pb-7 pt-[calc(env(safe-area-inset-top,44px)+14px)] backdrop-blur-[20px] backdrop-saturate-[180%]"
+      >
+        <div className="flex items-end justify-between px-5 pt-3.5">
+          <motion.h1
+            animate={{ color: isScrolled ? '#FF6B35' : '#18181B' }}
+            transition={{ duration: 0.25, ease: iosEase }}
+            className="m-0 select-none text-3xl font-extrabold tracking-[-0.5px]"
+          >
             {t.title}
-          </h1>
+          </motion.h1>
 
           {/* Botón redondo arriba a la derecha para agregar usuario */}
           <motion.button
