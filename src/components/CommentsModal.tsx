@@ -1,8 +1,11 @@
 import { useState, useEffect } from "react";
+import { motion, AnimatePresence } from "framer-motion";
 import { supabase } from "../lib/supabase";
 import { useAuth } from "../context/AuthContext";
 import { useLanguage } from "../context/LanguageContext";
 import { translations } from "../utils/translations";
+
+const iosEase = [0.22, 1, 0.36, 1] as const;
 
 type Comment = {
   id: string;
@@ -20,7 +23,13 @@ type Comment = {
   liked_by_me?: boolean;
 };
 
-export default function CommentsModal({ recipe, onClose }: { recipe: any; onClose: () => void }) {
+export default function CommentsModal({
+  recipe,
+  onClose,
+}: {
+  recipe: any;
+  onClose: () => void;
+}) {
   const { user } = useAuth();
   const { language } = useLanguage();
   const t = translations[language].friends;
@@ -37,7 +46,6 @@ export default function CommentsModal({ recipe, onClose }: { recipe: any; onClos
   async function loadComments() {
     if (!user?.id) return;
 
-    // 1. Cargar comentarios especificando el foreign key correcto para evitar ambigüedades
     const { data: commentsData, error } = await supabase
       .from("comments")
       .select(`
@@ -54,8 +62,7 @@ export default function CommentsModal({ recipe, onClose }: { recipe: any; onClos
 
     if (!commentsData) return;
 
-    // 2. Cargar los likes de estos comentarios hechos por el usuario actual
-    const commentIds = commentsData.map(c => c.id);
+    const commentIds = commentsData.map((c) => c.id);
     let userLikes: string[] = [];
 
     if (commentIds.length > 0) {
@@ -65,10 +72,9 @@ export default function CommentsModal({ recipe, onClose }: { recipe: any; onClos
         .eq("user_id", user.id)
         .in("comment_id", commentIds);
 
-      userLikes = likesData?.map(l => l.comment_id) || [];
+      userLikes = likesData?.map((l) => l.comment_id) || [];
     }
 
-    // 3. Obtener conteos de likes totales por comentario
     const formattedComments = await Promise.all(
       commentsData.map(async (comment) => {
         const { count } = await supabase
@@ -129,86 +135,169 @@ export default function CommentsModal({ recipe, onClose }: { recipe: any; onClos
   async function handleDeleteComment(commentId: string) {
     const { error } = await supabase.from("comments").delete().eq("id", commentId);
     if (!error) {
-      setComments(prev => prev.filter(c => c.id !== commentId));
+      setComments((prev) => prev.filter((c) => c.id !== commentId));
     }
     setActiveMenuId(null);
   }
 
   return (
-    <div className="fixed inset-0 z-[999] flex items-end sm:items-center justify-center bg-black/50 backdrop-blur-sm p-0 sm:p-4">
-      <div className="bg-white w-full max-w-lg h-[90vh] sm:h-[85vh] rounded-t-[32px] sm:rounded-3xl flex flex-col overflow-hidden shadow-2xl">
-        
-        {/* PARTE SUPERIOR: PREVISUALIZACIÓN DEL POST (Más chica y compacta) */}
-        <div className="relative h-[32%] bg-zinc-900 shrink-0 flex flex-col justify-between overflow-hidden">
-          <img 
-            src={recipe.image} 
-            alt={recipe.title} 
-            className="absolute inset-0 w-full h-full object-cover opacity-50 blur-xs scale-105"
-          />
-          <div className="absolute inset-0 bg-gradient-to-t from-zinc-950/90 via-zinc-950/40 to-transparent" />
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      transition={{ duration: 0.32, ease: iosEase }}
+      className="fixed inset-0 z-[100] flex h-screen w-screen select-none flex-col overflow-hidden bg-white"
+    >
+      {/* HEADER SUPERIOR LIMPIO + TARJETA COMPACTA CON FOTO OSCURA + FADE GRIS ABAJO */}
+      <motion.div
+        initial={{ opacity: 0, y: 8 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.34, ease: iosEase }}
+        className="relative shrink-0 bg-white/95 pb-6 pt-[env(safe-area-inset-top,44px)] backdrop-blur-xl"
+      >
+        {/* Barra de navegación */}
+        <div className="flex items-center justify-between px-5 pb-3 pt-2">
+          <h3 className="m-0 text-[22px] font-extrabold tracking-[-0.4px] text-[#1C1C1E]">
+            Comentarios
+          </h3>
+          <motion.button
+            type="button"
+            aria-label="Cerrar"
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.92 }}
+            onClick={onClose}
+            className="flex h-10 w-10 cursor-pointer select-none items-center justify-center rounded-full border-none bg-[#F2F2F7] text-sm font-extrabold text-[#1C1C1E] transition-colors duration-200 hover:bg-[#E5E5EA]"
+          >
+            ✕
+          </motion.button>
+        </div>
 
-          <div className="relative z-10 flex justify-between items-center px-4 pt-3 pb-1">
-            <h3 className="text-white font-extrabold text-sm drop-shadow-md">Comentarios</h3>
-            <button 
-              onClick={onClose}
-              className="w-7 h-7 rounded-full bg-black/40 text-white flex items-center justify-center backdrop-blur-md hover:bg-black/60 transition text-xs"
-            >
-              ✕
-            </button>
-          </div>
+        {/* Hero / Preview compacto con foto un poco más oscura y degradado oscuro */}
+        <div className="relative z-10 px-4">
+          <div className="group/hero relative flex h-[132px] w-full flex-col justify-end overflow-hidden rounded-[24px] bg-zinc-900 shadow-[0_8px_22px_rgba(0,0,0,0.12)]">
+            <img
+              src={recipe.image}
+              alt={recipe.title}
+              draggable={false}
+              onContextMenu={(e) => e.preventDefault()}
+              className="pointer-events-none absolute inset-0 h-full w-full select-none object-cover opacity-60 transition-transform duration-500 ease-out group-hover/hero:scale-[1.03]"
+            />
 
-          <div className="relative z-10 px-4 pb-3 flex flex-col gap-1.5">
-            <div className="flex items-center gap-2.5">
-              {recipe.author?.avatar ? (
-                <img src={recipe.author.avatar} alt={recipe.author?.name} className="w-8 h-8 rounded-full object-cover border border-white/20" />
-              ) : (
-                <div className="w-8 h-8 rounded-full bg-zinc-700 flex items-center justify-center text-white font-bold text-xs">
-                  {recipe.author?.name?.[0]}
+            {/* Degradado oscuro marcado */}
+            <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/80 via-black/35 to-black/20" />
+
+            {/* Info de usuario y título un poco más arriba */}
+            <div className="relative z-10 flex items-center justify-between gap-3 px-4 pb-3.5 pt-2">
+              <div className="flex min-w-0 flex-1 flex-col gap-1">
+                <h2 className="m-0 line-clamp-1 text-[15px] font-extrabold leading-snug text-white drop-shadow-[0_1px_5px_rgba(0,0,0,0.6)]">
+                  {recipe.title}
+                </h2>
+
+                <div className="flex items-center gap-2">
+                  {recipe.author?.avatar ? (
+                    <img
+                      src={recipe.author.avatar}
+                      alt={recipe.author?.name}
+                      draggable={false}
+                      onContextMenu={(e) => e.preventDefault()}
+                      className="pointer-events-none h-6 w-6 shrink-0 select-none rounded-full border border-white/45 object-cover"
+                    />
+                  ) : (
+                    <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-white/25 text-[10px] font-bold text-white backdrop-blur-sm">
+                      {recipe.author?.name?.[0]}
+                    </div>
+                  )}
+                  <span className="truncate text-xs font-bold text-white drop-shadow-[0_1px_4px_rgba(0,0,0,0.55)]">
+                    {recipe.author?.name}
+                  </span>
+                  <span className="truncate text-[11px] font-medium text-white/80">
+                    @{recipe.author?.username}
+                  </span>
                 </div>
-              )}
-              <div>
-                <p className="text-white font-bold text-xs drop-shadow">{recipe.author?.name}</p>
-                <p className="text-zinc-300 text-[10px]">@{recipe.author?.username}</p>
               </div>
             </div>
-            <h2 className="text-white font-extrabold text-base leading-snug drop-shadow-md line-clamp-1">
-              {recipe.title}
-            </h2>
           </div>
         </div>
 
-        {/* PARTE INFERIOR: COMENTARIOS */}
-        <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-[#F2F2F7]">
-          {comments.length === 0 ? (
-            <div className="h-full flex flex-col items-center justify-center text-zinc-400 text-sm">
-              <p>No hay comentarios aún. ¡Sé el primero en comentar! 💬</p>
-            </div>
-          ) : (
-            comments.map((comment) => (
-              <div key={comment.id} className="bg-white p-3.5 rounded-2xl shadow-xs flex gap-3 relative">
+        {/* Fade gris debajo del card de la foto (gris arriba -> 0% opacidad abajo) */}
+        <div className="pointer-events-none absolute bottom-0 left-0 right-0 h-6 bg-gradient-to-b from-[#E5E5EA]/75 to-transparent" />
+      </motion.div>
+
+      {/* PARTE INFERIOR: LISTADO ESTILO X / TWITTER SEPARADO POR LÍNEA FINA */}
+      <motion.div
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.38, ease: iosEase, delay: 0.06 }}
+        className="flex-1 overflow-y-auto bg-white pb-28 pt-1"
+      >
+        {comments.length === 0 ? (
+          <div className="flex h-full flex-col items-center justify-center px-6 text-center text-sm text-zinc-400">
+            <p className="m-0 font-semibold">
+              No hay comentarios aún. ¡Sé el primero en comentar! 💬
+            </p>
+          </div>
+        ) : (
+          <AnimatePresence initial={false}>
+            {comments.map((comment, index) => (
+              <motion.article
+                key={comment.id}
+                layout
+                initial={{ opacity: 0, y: 6 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -4 }}
+                transition={{
+                  duration: 0.26,
+                  ease: iosEase,
+                  delay: Math.min(index * 0.03, 0.2),
+                }}
+                className="group/row relative flex gap-3 border-b border-black/[0.06] px-5 py-3.5 transition-colors duration-200 ease-out hover:bg-[#FAFAFC] last:border-b-0"
+              >
                 {comment.user?.avatar ? (
-                  <img src={comment.user.avatar} alt={comment.user?.name} className="w-9 h-9 rounded-full object-cover shrink-0" />
+                  <img
+                    src={comment.user.avatar}
+                    alt={comment.user?.name}
+                    draggable={false}
+                    onContextMenu={(e) => e.preventDefault()}
+                    className="pointer-events-none mt-0.5 h-9 w-9 shrink-0 select-none rounded-full object-cover transition-transform duration-200 ease-out group-hover/row:scale-[1.03]"
+                  />
                 ) : (
-                  <div className="w-9 h-9 rounded-full bg-zinc-200 flex items-center justify-center font-bold text-zinc-600 shrink-0 text-xs">
+                  <div className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#F2F2F7] text-xs font-bold text-zinc-600 transition-transform duration-200 ease-out group-hover/row:scale-[1.03]">
                     {comment.user?.name?.[0] || "?"}
                   </div>
                 )}
-                <div className="flex-1 pr-6">
-                  <div className="flex items-center justify-between">
-                    <span className="font-bold text-xs text-zinc-900">{comment.user?.name}</span>
-                    <span className="text-[10px] text-zinc-400">
-                      {new Date(comment.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                    </span>
-                  </div>
-                  <p className="text-xs text-zinc-500 mb-1">@{comment.user?.username}</p>
-                  <p className="text-sm text-zinc-800 leading-relaxed mb-4">{comment.content}</p>
 
-                  {/* Iconos abajo a la derecha: Like (Corazón) y Menú de opciones (3 puntitos) */}
-                  <div className="absolute bottom-3 right-4 flex items-center gap-3">
-                    {/* Botón Like con Corazón */}
-                    <button
-                      onClick={() => toggleCommentLike(comment.id, !!comment.liked_by_me)}
-                      className="flex items-center gap-1 bg-none border-none cursor-pointer group"
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="flex min-w-0 items-baseline gap-1.5">
+                      <span className="truncate text-[13px] font-extrabold text-[#1C1C1E] transition-colors duration-200 group-hover/row:text-black">
+                        {comment.user?.name}
+                      </span>
+                      <span className="truncate text-xs font-medium text-[#8E8E93]">
+                        @{comment.user?.username}
+                      </span>
+                      <span className="shrink-0 text-[11px] text-[#AEAEB2]">
+                        ·{" "}
+                        {new Date(comment.created_at).toLocaleTimeString([], {
+                          hour: "2-digit",
+                          minute: "2-digit",
+                        })}
+                      </span>
+                    </div>
+                  </div>
+
+                  <p className="m-0 mt-1 break-words text-[14px] leading-[1.45] text-[#1C1C1E]/90">
+                    {comment.content}
+                  </p>
+
+                  <div className="mt-2.5 flex items-center justify-between">
+                    <motion.button
+                      type="button"
+                      whileHover={{ scale: 1.05 }}
+                      whileTap={{ scale: 0.88 }}
+                      onClick={() =>
+                        toggleCommentLike(comment.id, !!comment.liked_by_me)
+                      }
+                      className="group/like flex cursor-pointer select-none items-center gap-1.5 rounded-full border-none bg-transparent px-1.5 py-0.5 transition-colors duration-200 hover:bg-[#FF2D55]/[0.07]"
                     >
                       <svg
                         width="15"
@@ -217,71 +306,96 @@ export default function CommentsModal({ recipe, onClose }: { recipe: any; onClos
                         fill={comment.liked_by_me ? "#FF2D55" : "none"}
                         stroke={comment.liked_by_me ? "#FF2D55" : "#AEAEB2"}
                         strokeWidth="2"
-                        className="transition-transform active:scale-125"
+                        className="transition-all duration-200 group-hover/like:stroke-[#FF2D55]"
                       >
-                        <path d="M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 000-7.78z"/>
+                        <path d="M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 000-7.78z" />
                       </svg>
-                      <span className={`text-xs font-semibold ${comment.liked_by_me ? "text-[#FF2D55]" : "text-[#AEAEB2]"}`}>
+                      <span
+                        className={`text-xs font-semibold transition-colors duration-200 ${
+                          comment.liked_by_me
+                            ? "text-[#FF2D55]"
+                            : "text-[#AEAEB2] group-hover/like:text-[#FF2D55]"
+                        }`}
+                      >
                         {comment.likes_count || 0}
                       </span>
-                    </button>
+                    </motion.button>
 
-                    {/* Botón 3 puntitos para menú */}
                     <div className="relative">
                       <button
-                        onClick={() => setActiveMenuId(activeMenuId === comment.id ? null : comment.id)}
-                        className="w-6 h-6 flex items-center justify-center text-zinc-400 hover:text-zinc-600 bg-none border-none cursor-pointer"
+                        type="button"
+                        onClick={() =>
+                          setActiveMenuId(
+                            activeMenuId === comment.id ? null : comment.id
+                          )
+                        }
+                        className="flex h-7 w-7 cursor-pointer select-none items-center justify-center rounded-full border-none bg-transparent text-xs text-[#AEAEB2] transition-all duration-200 hover:bg-[#F2F2F7] hover:text-[#1C1C1E]"
                       >
                         •••
                       </button>
 
-                      {/* Menú flotante de opción borrar */}
-                      {activeMenuId === comment.id && (
-                        <div className="absolute right-0 bottom-7 bg-white shadow-lg rounded-xl border border-zinc-100 py-1 z-20 min-w-[100px]">
-                          {comment.user_id === user?.id ? (
-                            <button
-                              onClick={() => handleDeleteComment(comment.id)}
-                              className="w-full text-left px-3 py-1.5 text-xs font-bold text-red-500 hover:bg-red-50 transition bg-none border-none cursor-pointer"
-                            >
-                              Borrar
-                            </button>
-                          ) : (
-                            <div className="px-3 py-1.5 text-[10px] text-zinc-400 italic">
-                              Sin opciones
-                            </div>
-                          )}
-                        </div>
-                      )}
+                      <AnimatePresence>
+                        {activeMenuId === comment.id && (
+                          <motion.div
+                            initial={{ opacity: 0, scale: 0.94, y: 4 }}
+                            animate={{ opacity: 1, scale: 1, y: 0 }}
+                            exit={{ opacity: 0, scale: 0.94, y: 4 }}
+                            transition={{ duration: 0.18, ease: iosEase }}
+                            className="absolute bottom-8 right-0 z-20 min-w-[112px] overflow-hidden rounded-2xl border border-black/[0.06] bg-white py-1 shadow-[0_8px_24px_rgba(0,0,0,0.12)]"
+                          >
+                            {comment.user_id === user?.id ? (
+                              <button
+                                type="button"
+                                onClick={() => handleDeleteComment(comment.id)}
+                                className="w-full cursor-pointer border-none bg-transparent px-3.5 py-2 text-left text-xs font-bold text-red-500 transition-colors duration-150 hover:bg-red-500/10"
+                              >
+                                Borrar
+                              </button>
+                            ) : (
+                              <div className="px-3.5 py-2 text-[11px] italic text-zinc-400">
+                                Sin opciones
+                              </div>
+                            )}
+                          </motion.div>
+                        )}
+                      </AnimatePresence>
                     </div>
                   </div>
-
                 </div>
-              </div>
-            ))
-          )}
-        </div>
+              </motion.article>
+            ))}
+          </AnimatePresence>
+        )}
+      </motion.div>
 
-        {/* INPUT PARA ESCRIBIR COMENTARIO */}
-        <form onSubmit={handleAddComment} className="p-3 bg-white border-t border-zinc-200 flex items-center gap-2">
+      {/* BARRA FLOTANTE DE COMENTARIO CON FADE GRIS ABAJO Y 0% ARRIBA */}
+      <div className="pointer-events-none fixed bottom-0 left-0 right-0 z-30 flex flex-col justify-end bg-gradient-to-t from-[#E5E5EA] via-[#E5E5EA]/70 to-transparent px-4 pb-[calc(env(safe-area-inset-bottom,12px)+14px)] pt-8">
+        <form
+          onSubmit={handleAddComment}
+          className="pointer-events-auto flex items-center gap-2 rounded-full border border-black/[0.06] bg-white/95 p-1.5 pl-4 shadow-[0_10px_28px_rgba(0,0,0,0.12)] backdrop-blur-xl"
+        >
           <input
             type="text"
             placeholder="Escribe un comentario..."
             value={newComment}
             onChange={(e) => setNewComment(e.target.value)}
-            className="flex-1 bg-[#F2F2F7] px-4 py-2.5 rounded-full text-sm outline-none text-zinc-900 focus:ring-2 focus:ring-[#FF6B35]/30 transition"
+            className="flex-1 select-text border-none bg-transparent py-2 text-sm text-zinc-900 outline-none placeholder:text-[#8E8E93]"
           />
-          <button
+          <motion.button
             type="submit"
+            whileHover={loading || !newComment.trim() ? undefined : { scale: 1.03 }}
+            whileTap={loading || !newComment.trim() ? undefined : { scale: 0.94 }}
             disabled={loading || !newComment.trim()}
-            className={`px-5 py-2.5 rounded-full text-xs font-bold text-white transition ${
-              loading || !newComment.trim() ? "bg-zinc-300 cursor-not-allowed" : "bg-[#FF6B35] hover:opacity-90 active:scale-95"
+            className={`cursor-pointer select-none rounded-full border-none px-5 py-2.5 text-xs font-bold text-white transition-all duration-200 ${
+              loading || !newComment.trim()
+                ? "cursor-not-allowed bg-zinc-300"
+                : "bg-gradient-to-br from-[#FF6B35] to-[#FF9A5C] shadow-[0_4px_12px_rgba(255,107,53,0.35)] hover:shadow-[0_6px_16px_rgba(255,107,53,0.45)]"
             }`}
           >
             {loading ? "Enviando..." : "Comentar"}
-          </button>
+          </motion.button>
         </form>
-
       </div>
-    </div>
+    </motion.div>
   );
 }
