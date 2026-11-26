@@ -25,6 +25,7 @@ export default function FriendsTab() {
   const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
   const [openCommentsRecipe, setOpenCommentsRecipe] = useState<Recipe | null>(null);
   const [isScrolled, setIsScrolled] = useState(false);
+  const [copiedRecipeId, setCopiedRecipeId] = useState<string | null>(null);
 
   // Modal y buscador para agregar/seguir usuarios desde el botón redondo superior derecho
   const [showAddFriendModal, setShowAddFriendModal] = useState(false);
@@ -33,6 +34,7 @@ export default function FriendsTab() {
   const [users, setUsers] = useState<any[]>([]);
   const [recipes, setRecipes] = useState<any[]>([]);
   const [following, setFollowing] = useState<string[]>([]);
+  const [commentsCounts, setCommentsCounts] = useState<Record<string, number>>({});
 
   // Referencias y estados para el scroll horizontal y arrastre de la barra
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -105,6 +107,31 @@ export default function FriendsTab() {
     scrollRef.current.scrollLeft = percentage * maxScroll;
   };
 
+  async function loadCommentsCounts(recipeIds: string[]) {
+    if (recipeIds.length === 0) {
+      setCommentsCounts({});
+      return;
+    }
+
+    const { data: commentsRows, error } = await supabase
+      .from('comments')
+      .select('recipe_id')
+      .in('recipe_id', recipeIds);
+
+    if (error) {
+      console.log(error);
+      return;
+    }
+
+    const countsMap: Record<string, number> = {};
+    for (const row of commentsRows ?? []) {
+      if (!row.recipe_id) continue;
+      countsMap[row.recipe_id] = (countsMap[row.recipe_id] || 0) + 1;
+    }
+
+    setCommentsCounts(countsMap);
+  }
+
   async function loadFriends() {
     if (!user) return;
 
@@ -140,10 +167,12 @@ export default function FriendsTab() {
       return;
     }
 
-    setRecipes(recipeData ?? []);
+    const safeRecipes = recipeData ?? [];
+    setRecipes(safeRecipes);
+    await loadCommentsCounts(safeRecipes.map((r) => r.id));
 
     initializeLikes(
-      (recipeData ?? []).map((recipe) => ({
+      safeRecipes.map((recipe) => ({
         id: recipe.id,
         likes: recipe.likes,
       }))
@@ -153,7 +182,7 @@ export default function FriendsTab() {
     const profilesWithCounts = (profiles ?? []).map((profile) => ({
       ...profile,
       recipesCount:
-        recipeData?.filter((recipe) => recipe.author_id === profile.id).length ?? 0,
+        safeRecipes.filter((recipe) => recipe.author_id === profile.id).length ?? 0,
     }));
 
     setUsers(profilesWithCounts);
@@ -187,6 +216,41 @@ export default function FriendsTab() {
       });
 
       setFollowing((prev) => [...prev, id]);
+    }
+  }
+
+  async function handleShareRecipe(recipe: any) {
+    const shareUrl = `${window.location.origin}/?recipe=${recipe.id}`;
+    const shareTitle = recipe.title;
+    const shareText = recipe.description
+      ? `${recipe.title} — ${recipe.description}`
+      : recipe.title;
+
+    const isMobileDevice =
+      /iPhone|iPad|iPod|Android/i.test(navigator.userAgent) ||
+      window.matchMedia('(pointer: coarse)').matches;
+
+    if (isMobileDevice && typeof navigator.share === 'function') {
+      try {
+        await navigator.share({
+          title: shareTitle,
+          text: shareText,
+          url: shareUrl,
+        });
+        return;
+      } catch (err: any) {
+        if (err?.name === 'AbortError') return;
+      }
+    }
+
+    try {
+      await navigator.clipboard.writeText(shareUrl);
+      setCopiedRecipeId(recipe.id);
+      setTimeout(() => {
+        setCopiedRecipeId((prev) => (prev === recipe.id ? null : prev));
+      }, 1600);
+    } catch (err) {
+      console.error('Error al copiar al portapapeles:', err);
     }
   }
 
@@ -375,6 +439,7 @@ export default function FriendsTab() {
               {followingRecipes.map((recipe, index) => {
                 const category = CATEGORIES.find((c) => c.id === recipe.category);
                 const isFollowingAuthor = following.includes(recipe.author?.id);
+                const commentsCount = commentsCounts[recipe.id] || 0;
 
                 return (
                   <motion.article
@@ -515,33 +580,48 @@ export default function FriendsTab() {
                             <path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z" />
                           </svg>
                           <span className="text-[13px] font-semibold">
-                            {t.comment}
+                            {commentsCount > 0 ? commentsCount : t.comment}
                           </span>
                         </button>
 
-                        <button
+                        <motion.button
                           type="button"
-                          className="flex cursor-pointer select-none items-center gap-1.5 border-none bg-transparent p-0 text-[#AEAEB2] transition-colors duration-200 hover:text-[#1C1C1E]"
+                          aria-label={t.share}
+                          whileTap={{ scale: 0.88 }}
+                          onClick={() => handleShareRecipe(recipe)}
+                          className="flex cursor-pointer select-none items-center justify-center rounded-full border-none bg-transparent p-1 text-[#AEAEB2] transition-colors duration-200 hover:bg-[#F2F2F7] hover:text-[#1C1C1E]"
                         >
-                          <svg
-                            width="16"
-                            height="16"
-                            viewBox="0 0 24 24"
-                            fill="none"
-                            stroke="currentColor"
-                            strokeWidth="2"
-                            strokeLinecap="round"
-                          >
-                            <circle cx="18" cy="5" r="3" />
-                            <circle cx="6" cy="12" r="3" />
-                            <circle cx="18" cy="19" r="3" />
-                            <line x1="8.59" y1="13.51" x2="15.42" y2="17.49" />
-                            <line x1="15.41" y1="6.51" x2="8.59" y2="10.49" />
-                          </svg>
-                          <span className="text-[13px] font-semibold">
-                            {t.share}
-                          </span>
-                        </button>
+                          {copiedRecipeId === recipe.id ? (
+                            <svg
+                              width="17"
+                              height="17"
+                              viewBox="0 0 24 24"
+                              fill="none"
+                              stroke="#FF6B35"
+                              strokeWidth="2.4"
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                            >
+                              <polyline points="20 6 9 17 4 12" />
+                            </svg>
+                          ) : (
+                            <svg
+                              width="17"
+                              height="17"
+                              viewBox="0 0 24 24"
+                              fill="none"
+                              stroke="currentColor"
+                              strokeWidth="2"
+                              strokeLinecap="round"
+                            >
+                              <circle cx="18" cy="5" r="3" />
+                              <circle cx="6" cy="12" r="3" />
+                              <circle cx="18" cy="19" r="3" />
+                              <line x1="8.59" y1="13.51" x2="15.42" y2="17.49" />
+                              <line x1="15.41" y1="6.51" x2="8.59" y2="10.49" />
+                            </svg>
+                          )}
+                        </motion.button>
                       </div>
                     </div>
                   </motion.article>
@@ -702,7 +782,10 @@ export default function FriendsTab() {
         {openCommentsRecipe && (
           <CommentsModal
             recipe={openCommentsRecipe}
-            onClose={() => setOpenCommentsRecipe(null)}
+            onClose={() => {
+              setOpenCommentsRecipe(null);
+              loadCommentsCounts(recipes.map((r) => r.id));
+            }}
           />
         )}
       </AnimatePresence>

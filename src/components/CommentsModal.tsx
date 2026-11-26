@@ -32,7 +32,7 @@ export default function CommentsModal({
 }) {
   const { user } = useAuth();
   const { language } = useLanguage();
-  const t = translations[language].friends;
+  const t = translations[language].comments;
 
   const [comments, setComments] = useState<Comment[]>([]);
   const [newComment, setNewComment] = useState("");
@@ -106,7 +106,7 @@ export default function CommentsModal({
 
     if (error) {
       console.error("Error al publicar comentario:", error);
-      alert("Error al publicar: " + error.message);
+      alert(t.errorPrefix + error.message);
     } else {
       setNewComment("");
       loadComments();
@@ -158,7 +158,7 @@ export default function CommentsModal({
         {/* Barra de navegación */}
         <div className="flex items-center justify-between px-5 pb-3 pt-2">
           <h3 className="m-0 text-[22px] font-extrabold tracking-[-0.4px] text-[#1C1C1E]">
-            Comentarios
+            {t.title}
           </h3>
           <motion.button
             type="button"
@@ -232,9 +232,7 @@ export default function CommentsModal({
       >
         {comments.length === 0 ? (
           <div className="flex h-full flex-col items-center justify-center px-6 text-center text-sm text-zinc-400">
-            <p className="m-0 font-semibold">
-              No hay comentarios aún. ¡Sé el primero en comentar! 💬
-            </p>
+            <p className="m-0 font-semibold">{t.empty}</p>
           </div>
         ) : (
           <AnimatePresence initial={false}>
@@ -349,11 +347,11 @@ export default function CommentsModal({
                                 onClick={() => handleDeleteComment(comment.id)}
                                 className="w-full cursor-pointer border-none bg-transparent px-3.5 py-2 text-left text-xs font-bold text-red-500 transition-colors duration-150 hover:bg-red-500/10"
                               >
-                                Borrar
+                                {t.delete}
                               </button>
                             ) : (
                               <div className="px-3.5 py-2 text-[11px] italic text-zinc-400">
-                                Sin opciones
+                                {t.noOptions}
                               </div>
                             )}
                           </motion.div>
@@ -376,7 +374,7 @@ export default function CommentsModal({
         >
           <input
             type="text"
-            placeholder="Escribe un comentario..."
+            placeholder={t.placeholder}
             value={newComment}
             onChange={(e) => setNewComment(e.target.value)}
             className="flex-1 select-text border-none bg-transparent py-2 text-sm text-zinc-900 outline-none placeholder:text-[#8E8E93]"
@@ -392,7 +390,7 @@ export default function CommentsModal({
                 : "bg-gradient-to-br from-[#FF6B35] to-[#FF9A5C] shadow-[0_4px_12px_rgba(255,107,53,0.35)] hover:shadow-[0_6px_16px_rgba(255,107,53,0.45)]"
             }`}
           >
-            {loading ? "Enviando..." : "Comentar"}
+            {loading ? t.sending : t.submit}
           </motion.button>
         </form>
       </div>

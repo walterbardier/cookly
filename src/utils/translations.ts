@@ -152,6 +152,17 @@ export const translations = {
       loading: "Cargando...",
     },
 
+    comments: {
+      title: 'Comentarios',
+      empty: 'No hay comentarios aún. ¡Sé el primero en comentar! 💬',
+      delete: 'Borrar',
+      noOptions: 'Sin opciones',
+      placeholder: 'Escribe un comentario...',
+      sending: 'Enviando...',
+      submit: 'Comentar',
+      errorPrefix: 'Error al publicar: ',
+    },
+
   },
   en: {
     login: {
@@ -304,6 +315,17 @@ export const translations = {
       startedFollowing: "started following you.",
       commentedOnRecipe: "commented on your recipe 💬",
       loading: "Loading...",
+    },
+    
+    comments: {
+      title: 'Comments',
+      empty: 'No comments yet. Be the first to comment! 💬',
+      delete: 'Delete',
+      noOptions: 'No options',
+      placeholder: 'Write a comment...',
+      sending: 'Sending...',
+      submit: 'Comment',
+      errorPrefix: 'Failed to post: ',
     },
   }
 };
