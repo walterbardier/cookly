@@ -38,6 +38,37 @@ export default function CommentsModal({
   const [newComment, setNewComment] = useState("");
   const [loading, setLoading] = useState(false);
   const [activeMenuId, setActiveMenuId] = useState<string | null>(null);
+  const [viewportStyle, setViewportStyle] = useState<{
+    height: string;
+    top: string;
+  }>({
+    height: "100dvh",
+    top: "0px",
+  });
+
+  useEffect(() => {
+    const prevOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+
+    const vv = window.visualViewport;
+    const updateViewport = () => {
+      if (!vv) return;
+      setViewportStyle({
+        height: `${vv.height}px`,
+        top: `${vv.offsetTop}px`,
+      });
+    };
+
+    updateViewport();
+    vv?.addEventListener("resize", updateViewport);
+    vv?.addEventListener("scroll", updateViewport);
+
+    return () => {
+      document.body.style.overflow = prevOverflow;
+      vv?.removeEventListener("resize", updateViewport);
+      vv?.removeEventListener("scroll", updateViewport);
+    };
+  }, []);
 
   useEffect(() => {
     loadComments();
@@ -146,10 +177,11 @@ export default function CommentsModal({
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
       transition={{ duration: 0.32, ease: iosEase }}
-      className="fixed inset-0 z-[100] flex h-dvh w-screen select-none flex-col overflow-hidden bg-[#E5E5EA]"
+      style={viewportStyle}
+      className="fixed left-0 right-0 z-[100] flex w-screen select-none flex-col overflow-hidden bg-[#E5E5EA]"
     >
       {/* RESPALDO GRIS FIJO ABAJO DE TODO PARA OCULTAR LA PANTALLA ANTERIOR */}
-      <div className="pointer-events-none fixed inset-x-0 bottom-0 z-[5] h-40 bg-[#E5E5EA]" />
+      <div className="pointer-events-none fixed inset-x-0 bottom-0 z-[5] h-64 bg-[#E5E5EA]" />
 
       {/* HEADER SUPERIOR FLOTANTE SIN FONDO SÓLIDO, CON DEGRADADO SUAVE HACIA ABAJO */}
       <motion.div
