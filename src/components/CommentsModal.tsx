@@ -146,8 +146,11 @@ export default function CommentsModal({
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
       transition={{ duration: 0.32, ease: iosEase }}
-      className="fixed inset-0 z-[100] flex h-screen w-screen select-none flex-col overflow-hidden bg-white"
+      className="fixed inset-0 z-[100] flex h-dvh w-screen select-none flex-col overflow-hidden bg-[#E5E5EA]"
     >
+      {/* RESPALDO GRIS FIJO ABAJO DE TODO PARA OCULTAR LA PANTALLA ANTERIOR */}
+      <div className="pointer-events-none fixed inset-x-0 bottom-0 z-[5] h-40 bg-[#E5E5EA]" />
+
       {/* HEADER SUPERIOR FLOTANTE SIN FONDO SÓLIDO, CON DEGRADADO SUAVE HACIA ABAJO */}
       <motion.div
         initial={{ opacity: 0, y: 8 }}
@@ -231,7 +234,7 @@ export default function CommentsModal({
         initial={{ opacity: 0, y: 10 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.38, ease: iosEase, delay: 0.06 }}
-        className="h-full w-full overflow-y-auto bg-white pb-28 pt-[calc(env(safe-area-inset-top,44px)+210px)]"
+        className="relative z-10 h-full w-full overflow-y-auto overscroll-y-contain bg-white pb-28 pt-[calc(env(safe-area-inset-top,44px)+210px)]"
       >
         {comments.length === 0 ? (
           <div className="flex h-full flex-col items-center justify-center px-6 text-center text-sm text-zinc-400">
@@ -380,7 +383,7 @@ export default function CommentsModal({
             placeholder={t.placeholder}
             value={newComment}
             onChange={(e) => setNewComment(e.target.value)}
-            className="flex-1 select-text border-none bg-transparent py-2 text-sm text-zinc-900 outline-none placeholder:text-[#8E8E93]"
+            className="flex-1 select-text border-none bg-transparent py-2 text-[16px] text-zinc-900 outline-none placeholder:text-[#8E8E93]"
           />
           <motion.button
             type="submit"
