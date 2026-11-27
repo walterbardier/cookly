@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import type { Recipe } from '../data/mockData';
 import { CATEGORIES } from '../data/mockData';
@@ -61,6 +61,34 @@ export default function RecipeModal({ recipe, onClose, onNavigateToProfile }: Pr
 
   const currentCategory = CATEGORIES.find(c => c.id === recipe.category);
   const authorId = recipe.author_id || recipe.author?.id || recipe.profiles?.id;
+
+  // Bloquear scroll de la página de fondo mientras el modal está abierto
+  useEffect(() => {
+    const html = document.documentElement;
+    const body = document.body;
+
+    const prevHtmlOverflow = html.style.overflow;
+    const prevBodyOverflow = body.style.overflow;
+    const prevBodyPosition = body.style.position;
+    const prevBodyWidth = body.style.width;
+    const prevBodyTop = body.style.top;
+    const scrollY = window.scrollY;
+
+    html.style.overflow = 'hidden';
+    body.style.overflow = 'hidden';
+    body.style.position = 'fixed';
+    body.style.width = '100%';
+    body.style.top = `-${scrollY}px`;
+
+    return () => {
+      html.style.overflow = prevHtmlOverflow;
+      body.style.overflow = prevBodyOverflow;
+      body.style.position = prevBodyPosition;
+      body.style.width = prevBodyWidth;
+      body.style.top = prevBodyTop;
+      window.scrollTo(0, scrollY);
+    };
+  }, []);
 
   const handleAuthorClick = (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -201,6 +229,8 @@ export default function RecipeModal({ recipe, onClose, onNavigateToProfile }: Pr
         display: 'flex',
         justifyContent: 'center',
         alignItems: 'flex-end',
+        touchAction: 'none',
+        overscrollBehavior: 'none',
       }}
       onClick={onClose}
     >
@@ -217,6 +247,9 @@ export default function RecipeModal({ recipe, onClose, onNavigateToProfile }: Pr
           background: 'white',
           borderRadius: '28px 28px 0 0',
           overflowY: 'auto',
+          overscrollBehavior: 'contain',
+          WebkitOverflowScrolling: 'touch',
+          touchAction: 'pan-y',
         }}
       >
         {/* Toast Notificación */}
