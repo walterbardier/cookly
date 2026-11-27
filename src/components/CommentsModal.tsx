@@ -38,35 +38,62 @@ export default function CommentsModal({
   const [newComment, setNewComment] = useState("");
   const [loading, setLoading] = useState(false);
   const [activeMenuId, setActiveMenuId] = useState<string | null>(null);
-  const [viewportStyle, setViewportStyle] = useState<{
-    height: string;
-    top: string;
-  }>({
-    height: "100dvh",
-    top: "0px",
-  });
+  const [vvRect, setVvRect] = useState<{
+    top: number;
+    left: number;
+    width: number;
+    height: number;
+  }>(() => ({
+    top: 0,
+    left: 0,
+    width: typeof window !== "undefined" ? window.innerWidth : 390,
+    height: typeof window !== "undefined" ? window.innerHeight : 844,
+  }));
 
   useEffect(() => {
-    const prevOverflow = document.body.style.overflow;
+    const prevHtmlOverflow = document.documentElement.style.overflow;
+    const prevBodyOverflow = document.body.style.overflow;
+    const prevBodyPosition = document.body.style.position;
+    const prevBodyWidth = document.body.style.width;
+
+    document.documentElement.style.overflow = "hidden";
     document.body.style.overflow = "hidden";
+    document.body.style.position = "fixed";
+    document.body.style.width = "100%";
 
     const vv = window.visualViewport;
-    const updateViewport = () => {
-      if (!vv) return;
-      setViewportStyle({
-        height: `${vv.height}px`,
-        top: `${vv.offsetTop}px`,
-      });
+    const syncViewport = () => {
+      if (vv) {
+        setVvRect({
+          top: vv.offsetTop,
+          left: vv.offsetLeft,
+          width: vv.width,
+          height: vv.height,
+        });
+      } else {
+        setVvRect({
+          top: 0,
+          left: 0,
+          width: window.innerWidth,
+          height: window.innerHeight,
+        });
+      }
+      window.scrollTo(0, 0);
     };
 
-    updateViewport();
-    vv?.addEventListener("resize", updateViewport);
-    vv?.addEventListener("scroll", updateViewport);
+    syncViewport();
+    vv?.addEventListener("resize", syncViewport);
+    vv?.addEventListener("scroll", syncViewport);
+    window.addEventListener("resize", syncViewport);
 
     return () => {
-      document.body.style.overflow = prevOverflow;
-      vv?.removeEventListener("resize", updateViewport);
-      vv?.removeEventListener("scroll", updateViewport);
+      document.documentElement.style.overflow = prevHtmlOverflow;
+      document.body.style.overflow = prevBodyOverflow;
+      document.body.style.position = prevBodyPosition;
+      document.body.style.width = prevBodyWidth;
+      vv?.removeEventListener("resize", syncViewport);
+      vv?.removeEventListener("scroll", syncViewport);
+      window.removeEventListener("resize", syncViewport);
     };
   }, []);
 
@@ -177,11 +204,18 @@ export default function CommentsModal({
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
       transition={{ duration: 0.32, ease: iosEase }}
-      style={viewportStyle}
-      className="fixed left-0 right-0 z-[100] flex w-screen select-none flex-col overflow-hidden bg-[#E5E5EA]"
+      style={{
+        position: "fixed",
+        top: `${vvRect.top}px`,
+        left: `${vvRect.left}px`,
+        width: `${vvRect.width}px`,
+        height: `${vvRect.height}px`,
+        transform: "translate3d(0, 0, 0)",
+      }}
+      className="z-[100] flex select-none flex-col overflow-hidden bg-[#E5E5EA]"
     >
-      {/* RESPALDO GRIS FIJO ABAJO DE TODO PARA OCULTAR LA PANTALLA ANTERIOR */}
-      <div className="pointer-events-none fixed inset-x-0 bottom-0 z-[5] h-64 bg-[#E5E5EA]" />
+      {/* RESPALDO GRIS SÓLIDO ABAJO PARA QUE NO SE VEA LA PÁGINA ANTERIOR */}
+      <div className="pointer-events-none fixed inset-x-0 bottom-0 z-[1] h-48 bg-[#E5E5EA]" />
 
       {/* HEADER SUPERIOR FLOTANTE SIN FONDO SÓLIDO, CON DEGRADADO SUAVE HACIA ABAJO */}
       <motion.div
