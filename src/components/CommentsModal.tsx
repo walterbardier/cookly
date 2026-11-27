@@ -6,6 +6,12 @@ import { useLanguage } from "../context/LanguageContext";
 import { translations } from "../utils/translations";
 
 const iosEase = [0.22, 1, 0.36, 1] as const;
+const iosInputSpring = {
+  type: "spring",
+  stiffness: 420,
+  damping: 36,
+  mass: 0.85,
+} as const;
 
 type Comment = {
   id: string;
@@ -38,62 +44,37 @@ export default function CommentsModal({
   const [newComment, setNewComment] = useState("");
   const [loading, setLoading] = useState(false);
   const [activeMenuId, setActiveMenuId] = useState<string | null>(null);
-  const [vvRect, setVvRect] = useState<{
-    top: number;
-    left: number;
-    width: number;
-    height: number;
-  }>(() => ({
-    top: 0,
-    left: 0,
-    width: typeof window !== "undefined" ? window.innerWidth : 390,
-    height: typeof window !== "undefined" ? window.innerHeight : 844,
-  }));
+  const [keyboardLift, setKeyboardLift] = useState(0);
 
   useEffect(() => {
     const prevHtmlOverflow = document.documentElement.style.overflow;
     const prevBodyOverflow = document.body.style.overflow;
-    const prevBodyPosition = document.body.style.position;
-    const prevBodyWidth = document.body.style.width;
 
     document.documentElement.style.overflow = "hidden";
     document.body.style.overflow = "hidden";
-    document.body.style.position = "fixed";
-    document.body.style.width = "100%";
 
     const vv = window.visualViewport;
-    const syncViewport = () => {
-      if (vv) {
-        setVvRect({
-          top: vv.offsetTop,
-          left: vv.offsetLeft,
-          width: vv.width,
-          height: vv.height,
-        });
-      } else {
-        setVvRect({
-          top: 0,
-          left: 0,
-          width: window.innerWidth,
-          height: window.innerHeight,
-        });
+    const updateKeyboardLift = () => {
+      if (!vv) {
+        setKeyboardLift(0);
+        return;
       }
-      window.scrollTo(0, 0);
+      const occluded = Math.max(
+        0,
+        window.innerHeight - vv.height - vv.offsetTop
+      );
+      setKeyboardLift(occluded);
     };
 
-    syncViewport();
-    vv?.addEventListener("resize", syncViewport);
-    vv?.addEventListener("scroll", syncViewport);
-    window.addEventListener("resize", syncViewport);
+    updateKeyboardLift();
+    vv?.addEventListener("resize", updateKeyboardLift);
+    vv?.addEventListener("scroll", updateKeyboardLift);
 
     return () => {
       document.documentElement.style.overflow = prevHtmlOverflow;
       document.body.style.overflow = prevBodyOverflow;
-      document.body.style.position = prevBodyPosition;
-      document.body.style.width = prevBodyWidth;
-      vv?.removeEventListener("resize", syncViewport);
-      vv?.removeEventListener("scroll", syncViewport);
-      window.removeEventListener("resize", syncViewport);
+      vv?.removeEventListener("resize", updateKeyboardLift);
+      vv?.removeEventListener("scroll", updateKeyboardLift);
     };
   }, []);
 
@@ -204,18 +185,10 @@ export default function CommentsModal({
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
       transition={{ duration: 0.32, ease: iosEase }}
-      style={{
-        position: "fixed",
-        top: `${vvRect.top}px`,
-        left: `${vvRect.left}px`,
-        width: `${vvRect.width}px`,
-        height: `${vvRect.height}px`,
-        transform: "translate3d(0, 0, 0)",
-      }}
-      className="z-[100] flex select-none flex-col overflow-hidden bg-[#E5E5EA]"
+      className="fixed inset-0 z-[100] flex h-dvh w-screen select-none flex-col overflow-hidden bg-[#E5E5EA]"
     >
       {/* RESPALDO GRIS SÓLIDO ABAJO PARA QUE NO SE VEA LA PÁGINA ANTERIOR */}
-      <div className="pointer-events-none fixed inset-x-0 bottom-0 z-[1] h-48 bg-[#E5E5EA]" />
+      <div className="pointer-events-none fixed inset-x-0 bottom-0 z-[1] h-64 bg-[#E5E5EA]" />
 
       {/* HEADER SUPERIOR FLOTANTE SIN FONDO SÓLIDO, CON DEGRADADO SUAVE HACIA ABAJO */}
       <motion.div
@@ -300,7 +273,10 @@ export default function CommentsModal({
         initial={{ opacity: 0, y: 10 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.38, ease: iosEase, delay: 0.06 }}
-        className="relative z-10 h-full w-full overflow-y-auto overscroll-y-contain bg-white pb-28 pt-[calc(env(safe-area-inset-top,44px)+210px)]"
+        style={{
+          paddingBottom: `${112 + keyboardLift}px`,
+        }}
+        className="relative z-10 h-full w-full overflow-y-auto overscroll-y-contain bg-white pt-[calc(env(safe-area-inset-top,44px)+210px)]"
       >
         {comments.length === 0 ? (
           <div className="flex h-full flex-col items-center justify-center px-6 text-center text-sm text-zinc-400">
@@ -438,8 +414,12 @@ export default function CommentsModal({
         )}
       </motion.div>
 
-      {/* BARRA FLOTANTE DE COMENTARIO CON FADE GRIS ABAJO Y 0% ARRIBA */}
-      <div className="pointer-events-none fixed bottom-0 left-0 right-0 z-30 flex flex-col justify-end bg-gradient-to-t from-[#E5E5EA] via-[#E5E5EA]/70 to-transparent px-4 pb-[calc(env(safe-area-inset-bottom,12px)+14px)] pt-8">
+      {/* BARRA FLOTANTE DE COMENTARIO CON FADE GRIS ABAJO Y MOVIMIENTO SUAVE SOBRE EL TECLADO */}
+      <motion.div
+        animate={{ y: -keyboardLift }}
+        transition={iosInputSpring}
+        className="pointer-events-none fixed bottom-0 left-0 right-0 z-30 flex flex-col justify-end bg-gradient-to-t from-[#E5E5EA] via-[#E5E5EA]/70 to-transparent px-4 pb-[calc(env(safe-area-inset-bottom,12px)+14px)] pt-8"
+      >
         <form
           onSubmit={handleAddComment}
           className="pointer-events-auto flex items-center gap-2 rounded-full border border-black/[0.06] bg-white/95 p-1.5 pl-4 shadow-[0_10px_28px_rgba(0,0,0,0.12)] backdrop-blur-xl"
@@ -465,7 +445,7 @@ export default function CommentsModal({
             {loading ? t.sending : t.submit}
           </motion.button>
         </form>
-      </div>
+      </motion.div>
     </motion.div>
   );
 }
